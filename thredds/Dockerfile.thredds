@@ -1,0 +1,7 @@
+FROM unidata/thredds-docker:5.6
+
+# Bake in a minimal, generic catalog.
+# Mount /data/* volumes at runtime.
+COPY thredds-config/catalog.xml /usr/local/tomcat/content/thredds/catalog.xml
+COPY thredds-config/threddsConfig.xml /usr/local/tomcat/content/thredds/threddsConfig.xml
+

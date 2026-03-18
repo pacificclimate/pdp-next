@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<threddsConfig>
+  <serverInformation>
+    <name>PCIC THREDDS Server</name>
+  </serverInformation>
+  
+  <WMS>
+    <allow>true</allow>
+    <maxImageWidth>2048</maxImageWidth>
+    <maxImageHeight>2048</maxImageHeight>
+  </WMS>
+  
+  <WCS>
+    <allow>true</allow>
+  </WCS>
+  
+  <NetcdfSubsetService>
+    <allow>true</allow>
+    <dir>/ncss-cache</dir>
+    <scour>86400</scour>
+    <maxAge>86400</maxAge>
+    <maxFileDownloadSize>20971520</maxFileDownloadSize>
+  </NetcdfSubsetService>
+</threddsConfig>
