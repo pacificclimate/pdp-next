@@ -48,7 +48,7 @@ export function createDatasetController({
   }
 
   function ncpartitionerBase() {
-    return '/ncpartitioner/partition/';
+    return ' /pdp-next/ncpartitioner/partition/';
   }
 
   function normalizePortalTimeValue(value) {
