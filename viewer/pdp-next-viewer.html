@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>THREDDS Viewer</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="header-top">
+        <div class="logo-section">
+          <img src="https://services.pacificclimate.org/portal/images/banner.png" alt="PCIC Logo" class="logo">
+        </div>
+        <h1 id="viewerTitle" class="page-title">THREDDS Viewer</h1>
+        <div class="header-links">
+          <a href="http://pacificclimate.org">PCIC Home</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="content-wrapper">
+      <div class="map-section">
+        <div id="map"></div>
+
+        <div class="map-controls">
+          <h4>Climate Layer Opacity</h4>
+          <div class="opacity-control">
+            <input id="opacity" type="range" min="0" max="100" value="80" step="5" />
+          </div>
+        </div>
+
+        <div class="map-legend legend-panel hidden" id="legendPanel">
+          <div class="legend-header">
+            <span>Legend</span>
+            <span id="legendTitle">—</span>
+          </div>
+          <img id="legendImage" alt="Color legend" />
+          <div class="legend-values">
+            <span>Min: <strong id="legendMin">Auto</strong></span>
+            <span>Max: <strong id="legendMax">Auto</strong></span>
+          </div>
+        </div>
+
+        <div class="status-bar" id="statusBar">
+          <span id="statusText">Ready - Select a dataset</span>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <!-- Dataset Selection -->
+        <div class="panel-section">
+          <h2 class="section-title">Dataset Selection</h2>
+          <div class="ensemble-selector">
+            <label for="ensembleSelect">Portal</label>
+            <select id="ensembleSelect" class="format-select"></select>
+          </div>
+          <ul class="menu-tree" id="datasetMenu"></ul>
+        </div>
+
+        <!-- Map Settings -->
+        <div class="panel-section">
+          <h2 class="section-title">Map Settings</h2>
+
+          <div class="color-controls">
+            <div class="color-row">
+              <label for="styleSelect">Style</label>
+              <select id="styleSelect" class="format-select">
+                <option value="default-scalar">Default (Scalar + palette)</option>
+                <option value="raster">Raster (palette)</option>
+                <option value="colored_contours">Colored Contours (palette)</option>
+                <option value="contours">Contours (no palette)</option>
+              </select>
+            </div>
+
+            <div class="color-row">
+              <label for="paletteSelect">Palette</label>
+              <select id="paletteSelect" class="format-select">
+                <option value="default">default</option>
+              </select>
+            </div>
+
+            <div class="color-row">
+              <label for="crsSelect">CRS</label>
+              <select id="crsSelect" class="format-select"></select>
+            </div>
+
+            <div class="color-row">
+              <label for="scaleMin">Min Value</label>
+              <input type="number" id="scaleMin" step="any" placeholder="Auto" />
+            </div>
+
+            <div class="color-row">
+              <label for="scaleMax">Max Value</label>
+              <input type="number" id="scaleMax" step="any" placeholder="Auto" />
+            </div>
+
+            <div class="color-row">
+              <label for="numColors">Colors</label>
+              <input type="number" id="numColors" min="2" max="254" value="100" />
+            </div>
+
+            <button class="btn btn-secondary" id="applyScaleBtn" type="button">Apply Scale</button>
+          </div>
+        </div>
+
+        <!-- Time Selection -->
+        <div class="panel-section">
+          <h2 class="section-title">Time Selection</h2>
+
+          <div class="time-controls">
+            <div class="time-mode-group">
+              <button class="time-mode-btn" data-mode="first" type="button">First</button>
+              <button class="time-mode-btn" data-mode="prev" type="button">◀</button>
+              <button class="time-mode-btn" data-mode="next" type="button">▶</button>
+              <button class="time-mode-btn" data-mode="last" type="button">Last</button>
+            </div>
+
+            <div class="time-slider-container disabled" id="timeSliderContainer">
+              <label for="timeSlider">Time Step</label>
+              <input id="timeSlider" type="range" min="0" max="0" value="0" disabled />
+            </div>
+
+            <div class="time-value" id="timeValue">—</div>
+          </div>
+        </div>
+
+        <!-- Subsetting -->
+        <div class="panel-section">
+          <h2 class="section-title">Subsetting</h2>
+
+          <div class="color-controls">
+            <div class="color-row">
+              <label for="subsetFullTime">Time</label>
+              <div class="checkbox-group">
+                <label class="checkbox-option">
+                  <input type="checkbox" id="subsetFullTime" checked />
+                  Use full time range
+                </label>
+                <label class="checkbox-option">
+                  <input type="checkbox" id="subsetCurrentTime" />
+                  Use current slider time
+                </label>
+              </div>
+            </div>
+
+            <div class="color-row">
+              <label for="subsetTimeStart">Start</label>
+              <input type="text" id="subsetTimeStart" inputmode="numeric" placeholder="YYYY-MM-DD or YYYY" />
+            </div>
+
+            <div class="color-row">
+              <label for="subsetTimeEnd">End</label>
+              <input type="text" id="subsetTimeEnd" inputmode="numeric" placeholder="YYYY-MM-DD or YYYY" />
+            </div>
+
+            <div class="color-row">
+              <label for="subsetSpatialMode">Spatial</label>
+              <select id="subsetSpatialMode" class="format-select">
+                <option value="whole" selected>Whole domain</option>
+                <option value="viewport">Current viewport</option>
+                <option value="draw_bbox">Draw bbox</option>
+                <option value="draw_point">Point</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary" id="subsetClearDraw" type="button">Clear drawing</button>
+
+            <button class="btn btn-primary" id="subsetDownloadBtn" type="button">Download subset</button>
+            <div class="download-info">
+            <div class="info-row">
+              <span class="info-label">Dataset</span>
+              <span class="info-value" id="datasetName">—</span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">Variable</span>
+              <span class="info-value" id="variableInfo">—</span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">Time</span>
+              <span class="info-value" id="timeInfo">—</span>
+            </div>
+
+            <div class="download-actions">
+              <button class="btn btn-secondary" id="metadataBtn" type="button">Metadata</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <span>
+        <a href="http://www.pacificclimate.org/terms-of-use/">Terms of Use</a>
+        | © OpenStreetMap contributors
+      </span>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
