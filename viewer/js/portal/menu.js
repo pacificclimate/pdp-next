@@ -48,7 +48,7 @@ export function createMenuController({
   }
 
   function getPortalMetaUrl(portalId) {
-    return `/portal-meta/${encodeURIComponent(String(portalId || '').toLowerCase())}.json`;
+    return `/pdp-next/portal-meta/${encodeURIComponent(String(portalId || '').toLowerCase())}.json`;
   }
 
   async function loadPortalMeta(portalId) {
