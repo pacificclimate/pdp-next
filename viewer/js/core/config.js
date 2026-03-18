@@ -65,7 +65,7 @@ export function buildDefaultPortalConfig(portalId) {
     id,
     title: known?.title || id,
     mount: known?.mount || id,
-    threddsRoot: '/thredds/',
+    threddsRoot: '/pdp-next/thredds/',
     defaultCrs: known?.defaultCrs || 'EPSG:3857',
     groups: [
       {
