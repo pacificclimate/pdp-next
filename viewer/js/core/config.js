@@ -14,6 +14,7 @@ export const PORTAL_PARAM_KEY = 'portal';
 export const WMS_VERSION = '1.3.0';
 export const TIME_EXPAND_LIMIT = 2000;
 export const NCSS_WARN_TIMESTEPS = 1500;
+export const DEFAULT_PORTAL_ID = 'canada_mosaic';
 
 export const PALETTE_LABELS = {
   default: 'Default',
@@ -57,6 +58,11 @@ export function normalizePortalId(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+export function isKnownPortalId(value) {
+  const id = normalizePortalId(value);
+  return !!id && KNOWN_PORTALS.some((portal) => portal.id === id);
+}
+
 export function buildDefaultPortalConfig(portalId) {
   const id = normalizePortalId(portalId);
   const known = KNOWN_PORTALS.find((portal) => portal.id === id);
@@ -81,9 +87,17 @@ export function buildDefaultPortalConfig(portalId) {
 
 export function readPortalId() {
   const url = new URL(window.location.href);
-  const raw = url.searchParams.get(PORTAL_PARAM_KEY);
-  if (raw) return raw.trim().toLowerCase();
+  const raw = normalizePortalId(url.searchParams.get(PORTAL_PARAM_KEY));
+  if (isKnownPortalId(raw)) return raw;
   const match = url.pathname.match(/\/portal\/([^/]+)\/?/i);
-  if (match?.[1]) return match[1].trim().toLowerCase();
+  const pathPortalId = normalizePortalId(match?.[1]);
+  if (isKnownPortalId(pathPortalId)) return pathPortalId;
   return null;
+}
+
+export function readDefaultPortalId() {
+  const runtimeDefault = window.PDP_DEFAULT_PORTAL_ID;
+  const candidate = normalizePortalId(runtimeDefault || DEFAULT_PORTAL_ID);
+  if (!candidate) return null;
+  return isKnownPortalId(candidate) ? candidate : DEFAULT_PORTAL_ID;
 }

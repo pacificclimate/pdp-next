@@ -1,5 +1,4 @@
 import {
-  PORTAL_PARAM_KEY,
   TIME_EXPAND_LIMIT,
   NCSS_WARN_TIMESTEPS,
   DEFAULT_VARIABLE_LABELS,
@@ -7,6 +6,7 @@ import {
   DEFAULT_CANADA_BBOX_4326,
   buildDefaultPortalConfig,
   readPortalId,
+  readDefaultPortalId,
 } from "./core/config.js";
 import { createTimeController } from "./time.js";
 import { createMenuController } from "./portal/menu.js";
@@ -56,12 +56,8 @@ import {
 ("use strict");
 
 const requestedPortalId = readPortalId();
-if (!requestedPortalId) {
-  throw new Error(
-    `Missing required URL parameter: ?${PORTAL_PARAM_KEY}=<id> (e.g. ?portal=mbcn)`,
-  );
-}
-let portal = buildDefaultPortalConfig(requestedPortalId);
+const resolvedPortalId = requestedPortalId || readDefaultPortalId();
+let portal = buildDefaultPortalConfig(resolvedPortalId);
 
 let groups = Array.isArray(portal.groups) ? portal.groups : [];
 if (!groups.length) {
