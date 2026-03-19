@@ -81,9 +81,9 @@ export function createTimeUiController({
     timeModeBtns.forEach((button) => {
       let buttonEnabled = enabled;
       const mode = String(button.dataset.mode || '').toLowerCase();
-      if (buttonEnabled && (mode === 'first' || mode === 'prev')) {
+      if (buttonEnabled && mode === 'first') {
         buttonEnabled = currentIndex > 0;
-      } else if (buttonEnabled && (mode === 'next' || mode === 'last')) {
+      } else if (buttonEnabled && mode === 'last') {
         buttonEnabled = currentIndex < lastIndex;
       }
       button.disabled = !buttonEnabled;

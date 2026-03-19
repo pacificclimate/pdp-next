@@ -87,6 +87,7 @@ export function wireEvents({
     const nextValue = String(timeSlider.value || '0');
     if (nextValue === lastAppliedTimeSliderValue) return;
     lastAppliedTimeSliderValue = nextValue;
+    updateTimeUI();
     timeValue.textContent = getSelectedTimeLabel();
     refreshInfoPanel();
     updateMap();
@@ -99,6 +100,7 @@ export function wireEvents({
     const nextValue = String(timeSlider.value || '0');
     if (nextValue === lastAppliedTimeSliderValue) return;
     lastAppliedTimeSliderValue = nextValue;
+    updateTimeUI();
     refreshInfoPanel();
     updateMap();
   });

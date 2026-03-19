@@ -61,7 +61,11 @@ export function createSubsetDownloadController({
   }
 
   function startBackgroundSubsetStatus(runId) {
-    clearBackgroundSubsetStatus();
+    if (activeBackgroundStatus?.timer) {
+      clearInterval(activeBackgroundStatus.timer);
+    }
+    activeBackgroundStatus = null;
+    setSubsetDownloadBusy(true);
     setStatus('Subset submitted. Waiting for server... (0s)');
     suppressStatusUpdates();
     const startedAt = Date.now();
