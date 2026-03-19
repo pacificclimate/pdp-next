@@ -26,6 +26,8 @@ export function createMapController({
   } = ui;
   const { setStatus, fetchText } = services;
   const { getSelectedTime, getSelectedTimeLabel } = time;
+  const MIN_WMS_COLOR_BANDS = 2;
+  const MAX_WMS_COLOR_BANDS = 254;
   proj4Ref.defs(
     "EPSG:3005",
     "+proj=aea +lat_1=50 +lat_2=58.5 +lat_0=45 +lon_0=-126 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m +no_defs",
@@ -124,6 +126,21 @@ export function createMapController({
     return Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
   }
 
+  function formatScaleInputValue(value) {
+    if (!Number.isFinite(value)) return "";
+    if (Math.abs(value) >= 1000 || Number.isInteger(value)) return String(value);
+    return String(Number(value.toFixed(3)));
+  }
+
+  function normalizeColorBandCount(value) {
+    const parsed = parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return 100;
+    return Math.min(
+      MAX_WMS_COLOR_BANDS,
+      Math.max(MIN_WMS_COLOR_BANDS, parsed),
+    );
+  }
+
   function styleSupportsPalette(styleBase) {
     const denied = state.layerDetails?.noPaletteStyles || [];
     return styleBase !== "contours" && !denied.includes(styleBase);
@@ -216,8 +233,10 @@ export function createMapController({
 
   function applyLayerScaleDefaults(range) {
     state.metadataRange = range || null;
-    scaleMin.value = range?.min != null ? String(range.min) : "";
-    scaleMax.value = range?.max != null ? String(range.max) : "";
+    scaleMin.value =
+      range?.min != null ? formatScaleInputValue(Number(range.min)) : "";
+    scaleMax.value =
+      range?.max != null ? formatScaleInputValue(Number(range.max)) : "";
   }
 
   function updateLegend(styleName, palette, min, max, bands, supportsPalette) {
@@ -303,11 +322,20 @@ export function createMapController({
     const metadataRange = state.metadataRange || {};
     const min = manualMin != null ? manualMin : metadataRange.min ?? null;
     const max = manualMax != null ? manualMax : metadataRange.max ?? null;
+    if (
+      Number.isFinite(min) &&
+      Number.isFinite(max) &&
+      Number(min) >= Number(max)
+    ) {
+      setStatus("Min value must be less than max value.", true);
+      return;
+    }
     const hasExplicitRange = Number.isFinite(min) && Number.isFinite(max);
     const shouldLogScale = Boolean(
       state.currentDataset?.rendering?.logScale && hasExplicitRange,
     );
-    const bands = numColors.value ? parseInt(numColors.value, 10) : 10;
+    const bands = normalizeColorBandCount(numColors?.value);
+    if (numColors) numColors.value = String(bands);
     const requestCrs = pickRequestCrsForLayer(state.selectedLayer, currentCrs);
     const params = {
       LAYERS: state.selectedLayer.name,
