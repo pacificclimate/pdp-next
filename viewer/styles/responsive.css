@@ -35,6 +35,16 @@
     flex-wrap: wrap;
   }
 
+  .logo-section {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .logo {
+    width: min(100%, 320px);
+    height: auto;
+  }
+
   .page-title {
     width: 100%;
     text-align: left;
