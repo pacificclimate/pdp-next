@@ -12,8 +12,6 @@ export function createSubsetDownloadController({
 }) {
   const {
     subsetSpatialMode,
-    subsetFullTime,
-    subsetCurrentTime,
     subsetTimeStart,
     subsetTimeEnd,
     subsetDownloadBtn
@@ -33,6 +31,7 @@ export function createSubsetDownloadController({
     threddsRoot
   } = services;
   const {
+    getSubsetTimeMode,
     getSelectedTime,
     parseSubsetDateValue
   } = time;
@@ -182,8 +181,9 @@ export function createSubsetDownloadController({
       return;
     }
 
-    const useFull = subsetFullTime.checked;
-    const useCurrent = subsetCurrentTime.checked;
+    const subsetTimeMode = getSubsetTimeMode();
+    const useFull = subsetTimeMode === 'full';
+    const useCurrent = subsetTimeMode === 'current';
     let rangeStart = '';
     let rangeEnd = '';
     if (useCurrent) {

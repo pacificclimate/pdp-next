@@ -4,8 +4,9 @@ export function createTimeUiController({
   timeSlider,
   timeSliderContainer,
   timeValue,
-  subsetFullTime,
-  subsetCurrentTime,
+  subsetTimeModeFull,
+  subsetTimeModeRange,
+  subsetTimeModeInputs,
   subsetTimeStart,
   subsetTimeEnd,
   parseHelpers
@@ -35,15 +36,21 @@ export function createTimeUiController({
     return Number(state.currentDataset?.timeMetadata?.count || state.times?.length || 0) > 12;
   }
 
+  function getSubsetTimeMode() {
+    return Array.from(subsetTimeModeInputs).find((input) => input.checked)?.value || 'full';
+  }
+
   function normalizeSubsetTimeSelection() {
-    if (!allowsRangeSubset() && !subsetFullTime.checked && !subsetCurrentTime.checked) {
-      subsetFullTime.checked = true;
-    }
+    if (!allowsRangeSubset() && subsetTimeModeRange.checked) subsetTimeModeFull.checked = true;
+    state.subset.timeMode = getSubsetTimeMode();
   }
 
   function syncSubsetTimeRangeVisibility() {
     normalizeSubsetTimeSelection();
-    const showRangeSubset = allowsRangeSubset() && !subsetFullTime.checked && !subsetCurrentTime.checked;
+    const rangeAllowed = allowsRangeSubset();
+    const showRangeSubset = rangeAllowed;
+    subsetTimeModeRange.closest('.checkbox-option')?.classList.toggle('disabled', !rangeAllowed);
+    subsetTimeModeRange.disabled = !rangeAllowed;
     subsetTimeStart?.closest('.color-row')?.classList.toggle('is-hidden', !showRangeSubset);
     subsetTimeEnd?.closest('.color-row')?.classList.toggle('is-hidden', !showRangeSubset);
   }
@@ -101,15 +108,14 @@ export function createTimeUiController({
   }
 
   function updateSubsetTimeInputsEnabled() {
-    const enabled = allowsRangeSubset()
-      && !subsetFullTime.checked
-      && !subsetCurrentTime.checked;
+    const enabled = allowsRangeSubset() && getSubsetTimeMode() === 'range';
     subsetTimeStart.disabled = !enabled;
     subsetTimeEnd.disabled = !enabled;
   }
 
   return {
     allowsRangeSubset,
+    getSubsetTimeMode,
     normalizeSubsetTimeSelection,
     syncSubsetTimeRangeVisibility,
     getSelectedTime,

@@ -10,8 +10,7 @@ import {
   portalSelect,
   metadataBtn,
   crsSelect,
-  subsetFullTime,
-  subsetCurrentTime,
+  subsetTimeModeInputs,
   subsetSpatialMode,
   subsetClearDraw,
   subsetDownloadBtn,
@@ -22,6 +21,7 @@ export function wireEvents({
   state,
   requestedPortalId,
   // time
+  getSubsetTimeMode,
   getSelectedTimeIndex,
   getSelectedTimeLabel,
   hasMultipleTimes,
@@ -135,18 +135,13 @@ export function wireEvents({
     updateMap();
   });
 
-  subsetFullTime.addEventListener('change', () => {
-    if (subsetFullTime.checked) subsetCurrentTime.checked = false;
-    normalizeSubsetTimeSelection();
-    syncSubsetTimeRangeVisibility();
-    updateSubsetTimeInputsEnabled();
-  });
-
-  subsetCurrentTime.addEventListener('change', () => {
-    if (subsetCurrentTime.checked) subsetFullTime.checked = false;
-    normalizeSubsetTimeSelection();
-    syncSubsetTimeRangeVisibility();
-    updateSubsetTimeInputsEnabled();
+  subsetTimeModeInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      state.subset.timeMode = getSubsetTimeMode();
+      normalizeSubsetTimeSelection();
+      syncSubsetTimeRangeVisibility();
+      updateSubsetTimeInputsEnabled();
+    });
   });
 
   subsetSpatialMode.addEventListener('change', () => {

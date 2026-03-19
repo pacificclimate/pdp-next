@@ -26,6 +26,7 @@ export function createTimeController({
     parseWmsCapabilities: metadataController.parseWmsCapabilities,
     deriveTimesFromLayerDetails: metadataController.deriveTimesFromLayerDetails,
     fetchLayerTimesteps: metadataController.fetchLayerTimesteps,
+    getSubsetTimeMode: uiController.getSubsetTimeMode,
     normalizeSubsetTimeSelection: uiController.normalizeSubsetTimeSelection,
     syncSubsetTimeRangeVisibility: uiController.syncSubsetTimeRangeVisibility,
     getSelectedTime: uiController.getSelectedTime,
