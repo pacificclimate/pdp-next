@@ -63,7 +63,7 @@ export function createSubsetDownloadController({
 
   function startBackgroundSubsetStatus(runId) {
     clearBackgroundSubsetStatus();
-    setStatus('Subset request submitted. Waiting for server output… (0s)');
+    setStatus('Subset submitted. Waiting for server... (0s)');
     suppressStatusUpdates();
     const startedAt = Date.now();
     const timer = setInterval(() => {
@@ -80,7 +80,7 @@ export function createSubsetDownloadController({
         setStatus('Subset is still processing in the background. Check browser downloads; server confirmation may lag.');
         return;
       }
-      forceSetStatus(`Subset request submitted. Waiting for server output… (${elapsedSeconds}s)`);
+      forceSetStatus(`Subset submitted. Waiting for server... (${elapsedSeconds}s)`);
     }, BACKGROUND_STATUS_POLL_MS);
     activeBackgroundStatus = { runId, timer };
     // Return a stop function the async artifact-watcher can always call,
@@ -312,7 +312,7 @@ export function createSubsetDownloadController({
           const bytes = Number(head.headers.get('content-length') || 0);
           const tPartitionEnd = performance.now();
           stopBackgroundStatus();
-          setStatus('Subset output detected on server. Browser download should begin if it has not already.');
+          setStatus('Generation complete, starting download');
           logger.logSubsetPerf({
             mode: 'ncpartitioner',
             file: state.currentDataset.urlPath,

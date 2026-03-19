@@ -32,24 +32,47 @@ export const subsetClearDraw = document.getElementById('subsetClearDraw');
 export const subsetDownloadBtn = document.getElementById('subsetDownloadBtn');
 
 const STATUS_SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const DEFAULT_READY_STATUS = 'Ready';
+const STATUS_RESET_DELAY_MS = 4000;
 
 let statusSpinnerTimer = null;
 let statusSpinnerFrame = 0;
 let statusSpinnerStartedAt = 0;
 let statusSuppressed = false;
+let statusResetTimer = null;
 
 export function suppressStatusUpdates() { statusSuppressed = true; }
 export function unsuppressStatusUpdates() { statusSuppressed = false; }
 
+function clearStatusResetTimer() {
+  if (!statusResetTimer) return;
+  window.clearTimeout(statusResetTimer);
+  statusResetTimer = null;
+}
+
+function scheduleStatusReset(isError) {
+  clearStatusResetTimer();
+  if (isError) return;
+  statusResetTimer = setTimeout(() => {
+    statusText.textContent = DEFAULT_READY_STATUS;
+    statusText.style.color = 'var(--text-muted)';
+    statusResetTimer = null;
+  }, STATUS_RESET_DELAY_MS);
+}
+
 export function setStatus(message, isError = false) {
   if (statusSuppressed && !isError) return;
+  clearStatusResetTimer();
   statusText.textContent = message;
   statusText.style.color = isError ? '#d32f2f' : 'var(--text-muted)';
+  scheduleStatusReset(isError);
 }
 
 export function forceSetStatus(message, isError = false) {
+  clearStatusResetTimer();
   statusText.textContent = message;
   statusText.style.color = isError ? '#d32f2f' : 'var(--text-muted)';
+  scheduleStatusReset(isError);
 }
 
 export function startStatusSpinner(message) {
