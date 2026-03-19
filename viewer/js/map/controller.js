@@ -97,6 +97,7 @@ export function createMapController({
     source: subsetDrawSource,
     visible: false,
   });
+  subsetDrawLayer.setZIndex(1000); // Force subset drawing layer to be on top of WMS layer
   map.addLayer(subsetDrawLayer);
   let wmsLayer = null;
 
@@ -106,6 +107,12 @@ export function createMapController({
       .toUpperCase();
     if (!olRef.proj.get(code)) return false;
     if (code === currentCrs) return true;
+    const previousCrs = currentCrs;
+    subsetDrawSource.getFeatures().forEach((feature) => { // Reproject any existing subset drawing to the new CRS
+      const geometry = feature.getGeometry();
+      if (!geometry) return;
+      geometry.transform(previousCrs, code);
+    });
     currentCrs = code;
     const nextCenter = olRef.proj.transform(
       DEFAULT_VIEW_CENTER_LONLAT,
