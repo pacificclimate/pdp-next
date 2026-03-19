@@ -15,7 +15,8 @@ export function createSubsetDownloadController({
     subsetFullTime,
     subsetCurrentTime,
     subsetTimeStart,
-    subsetTimeEnd
+    subsetTimeEnd,
+    subsetDownloadBtn
   } = ui;
   const {
     startStatusSpinner,
@@ -38,8 +39,14 @@ export function createSubsetDownloadController({
 
   const BACKGROUND_STATUS_TIMEOUT_MS = 120000;
   const BACKGROUND_STATUS_POLL_MS = 1000;
+  const SUBSET_DOWNLOAD_LABEL = 'Download subset';
 
   let activeBackgroundStatus = null;
+
+  function setSubsetDownloadBusy(isBusy) {
+    subsetDownloadBtn.disabled = isBusy;
+    subsetDownloadBtn.textContent = isBusy ? `${SUBSET_DOWNLOAD_LABEL}...` : SUBSET_DOWNLOAD_LABEL;
+  }
 
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,6 +57,7 @@ export function createSubsetDownloadController({
       clearInterval(activeBackgroundStatus.timer);
     }
     activeBackgroundStatus = null;
+    setSubsetDownloadBusy(false);
     if (message) setStatus(message, isError);
   }
 
@@ -68,6 +76,7 @@ export function createSubsetDownloadController({
         clearInterval(timer);
         activeBackgroundStatus = null;
         unsuppressStatusUpdates();
+        setSubsetDownloadBusy(false);
         setStatus('Subset is still processing in the background. Check browser downloads; server confirmation may lag.');
         return;
       }
@@ -80,6 +89,7 @@ export function createSubsetDownloadController({
       clearInterval(timer);
       if (activeBackgroundStatus?.runId === runId) activeBackgroundStatus = null;
       unsuppressStatusUpdates();
+      setSubsetDownloadBusy(false);
     };
   }
 
@@ -140,9 +150,11 @@ export function createSubsetDownloadController({
   }
 
   async function downloadSubset() {
+    if (subsetDownloadBtn.disabled) return;
     cancelPendingSubsetStatus();
     if (!state.currentDataset) return alert('Please select a dataset first');
     if (!state.variable) return alert('Could not infer variable for this file.');
+    setSubsetDownloadBusy(true);
     const run = logger.startSubsetRun('subset-download', { portal: portal.id, dataset: state.currentDataset?.urlPath || null });
     const spatialMode = (subsetSpatialMode?.value || 'viewport').toLowerCase();
     const datasetBbox = state.selectedLayer?.bbox4326 || { west: -180, south: -90, east: 180, north: 90 };
@@ -153,6 +165,7 @@ export function createSubsetDownloadController({
     } else if (spatialMode === 'draw_bbox' || spatialMode === 'draw_point') {
       bbox = drawController.getDrawnBbox4326();
       if (!bbox) {
+        setSubsetDownloadBusy(false);
         alert(spatialMode === 'draw_point' ? 'Please add a point on the map first.' : 'Please draw a geometry on the map first.');
         logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-drawn-bbox' });
         return;
@@ -163,6 +176,7 @@ export function createSubsetDownloadController({
       if (useWholeSpatialDomain) bbox = datasetBbox;
     }
     if (!bbox) {
+      setSubsetDownloadBusy(false);
       alert('Could not determine map extent for bbox.');
       logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-bbox' });
       return;
@@ -175,6 +189,7 @@ export function createSubsetDownloadController({
     if (useCurrent) {
       const selectedTime = getSelectedTime();
       if (!selectedTime || selectedTime === '—') {
+        setSubsetDownloadBusy(false);
         alert('No selected time available for this dataset.');
         logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-selected-time' });
         return;
@@ -185,6 +200,7 @@ export function createSubsetDownloadController({
       if (state.times.length > NCSS_WARN_TIMESTEPS) {
         const proceed = window.confirm(`Full-range subset will request ${state.times.length} timesteps and may time out. Continue?`);
         if (!proceed) {
+          setSubsetDownloadBusy(false);
           logger.finishSubsetRun(run, 'cancelled', { reason: 'user-cancelled-full-time-warning' });
           return;
         }
@@ -193,6 +209,7 @@ export function createSubsetDownloadController({
       const startIso = parseSubsetDateValue(subsetTimeStart.value, 'start');
       const endIso = parseSubsetDateValue(subsetTimeEnd.value, 'end');
       if (startIso === null || endIso === null) {
+        setSubsetDownloadBusy(false);
         alert('Please enter dates as YYYY, YYYY-MM, YYYY-MM-DD (or with / separators).');
         logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-input' });
         return;
@@ -200,6 +217,7 @@ export function createSubsetDownloadController({
       rangeStart = startIso || '';
       rangeEnd = endIso || '';
       if (rangeStart && rangeEnd && Date.parse(rangeStart) > Date.parse(rangeEnd)) {
+        setSubsetDownloadBusy(false);
         alert('Start date must be before end date.');
         logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-range' });
         return;
@@ -213,6 +231,7 @@ export function createSubsetDownloadController({
         startStatusSpinner('Starting full-file download (HTTPServer)…');
         triggerBackgroundDownload(fullFileUrl);
         stopStatusSpinner('Full-file download started.');
+        setSubsetDownloadBusy(false);
         try {
           const head = await fetch(`${fullFileUrl}?_ts=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
           const bytes = Number(head.headers.get('content-length') || 0);
@@ -323,6 +342,8 @@ export function createSubsetDownloadController({
         error: String(error?.message || error || 'unknown')
       });
       alert(`Subset failed: ${error?.message || error}`);
+    } finally {
+      if (!activeBackgroundStatus) setSubsetDownloadBusy(false);
     }
   }
 

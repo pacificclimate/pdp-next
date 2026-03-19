@@ -48,6 +48,7 @@ import {
   setStatus,
   startStatusSpinner,
   stopStatusSpinner,
+  subsetDownloadBtn,
   suppressStatusUpdates,
   unsuppressStatusUpdates,
   forceSetStatus,
@@ -290,6 +291,7 @@ const subsettingController = createSubsettingController({
     subsetCurrentTime,
     subsetTimeStart,
     subsetTimeEnd,
+    subsetDownloadBtn,
   },
   status: {
     startStatusSpinner,
