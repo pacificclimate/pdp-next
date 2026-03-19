@@ -329,29 +329,28 @@ export function createMapController({
       params.BELOWMINCOLOR = "transparent";
       params.ABOVEMAXCOLOR = "0x202020";
     }
-    wmsLayer = new olRef.layer.Image({
+    wmsLayer = new olRef.layer.Tile({
       opacity,
-      source: new olRef.source.ImageWMS({
+      source: new olRef.source.TileWMS({
         url: state.currentDataset.wmsBase,
         params,
         projection: requestCrs,
         hidpi: false,
         wrapX: false,
-        ratio: 1,
       }),
     });
     map.addLayer(wmsLayer);
     setStatus("Loading map image…");
     const src = wmsLayer.getSource();
-    src.on("imageloadend", () => setStatus("Ready"));
-    src.on("imageloaderror", (evt) => {
+    src.on("tileloadend", () => setStatus("Ready"));
+    src.on("tileloaderror", (evt) => {
       try {
-        const img = evt?.image?.getImage?.();
-        console.error("WMS image load error:", img?.src || "");
+        const tile = evt?.tile?.getImage?.();
+        console.error("WMS tile load error:", tile?.src || "");
       } catch {
         /* best-effort. img.src logging should never block error handling */
       }
-      setStatus("WMS image load error", true);
+      setStatus("WMS tile load error", true);
     });
     const legendMinValue =
       shouldLogScale && min != null ? Math.max(min, 1e-12) : min;
