@@ -22,7 +22,9 @@ export function wireEvents({
   state,
   requestedPortalId,
   // time
+  getSelectedTimeIndex,
   getSelectedTimeLabel,
+  hasMultipleTimes,
   updateTimeUI,
   normalizeSubsetTimeSelection,
   syncSubsetTimeRangeVisibility,
@@ -40,27 +42,63 @@ export function wireEvents({
   clearSubsetDrawing,
   downloadSubset
 }) {
+  let lastAppliedTimeSliderValue = null;
+
+  function refreshTimeSelectionIfChanged(nextIndex) {
+    const currentIndex = getSelectedTimeIndex();
+    const boundedIndex = Math.max(
+      0,
+      Math.min(state.times.length - 1, Number(nextIndex) || 0),
+    );
+    if (boundedIndex === currentIndex) {
+      updateTimeUI();
+      return false;
+    }
+    timeSlider.value = String(boundedIndex);
+    lastAppliedTimeSliderValue = timeSlider.value;
+    updateTimeUI();
+    timeValue.textContent = getSelectedTimeLabel();
+    refreshInfoPanel();
+    updateMap();
+    return true;
+  }
+
   timeModeBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
+      if (!hasMultipleTimes()) {
+        updateTimeUI();
+        return;
+      }
       const mode = btn.dataset.mode;
-      const current = Math.max(0, Math.min(state.times.length - 1, parseInt(timeSlider.value || '0', 10) || 0));
-      if (mode === 'first') timeSlider.value = '0';
-      else if (mode === 'last') timeSlider.value = String(Math.max(0, state.times.length - 1));
-      else if (mode === 'prev') timeSlider.value = String(Math.max(0, current - 1));
-      else if (mode === 'next') timeSlider.value = String(Math.min(Math.max(0, state.times.length - 1), current + 1));
-      updateTimeUI();
-      timeValue.textContent = getSelectedTimeLabel();
-      refreshInfoPanel();
-      updateMap();
+      const current = getSelectedTimeIndex();
+      const last = Math.max(0, state.times.length - 1);
+      if (mode === 'first') refreshTimeSelectionIfChanged(0);
+      else if (mode === 'last') refreshTimeSelectionIfChanged(last);
+      else if (mode === 'prev') refreshTimeSelectionIfChanged(current > 0 ? current - 1 : last);
+      else if (mode === 'next') refreshTimeSelectionIfChanged(current < last ? current + 1 : 0);
     });
   });
 
   timeSlider.addEventListener('input', () => {
+    if (!hasMultipleTimes()) {
+      updateTimeUI();
+      return;
+    }
+    const nextValue = String(timeSlider.value || '0');
+    if (nextValue === lastAppliedTimeSliderValue) return;
+    lastAppliedTimeSliderValue = nextValue;
     timeValue.textContent = getSelectedTimeLabel();
     refreshInfoPanel();
     updateMap();
   });
   timeSlider.addEventListener('change', () => {
+    if (!hasMultipleTimes()) {
+      updateTimeUI();
+      return;
+    }
+    const nextValue = String(timeSlider.value || '0');
+    if (nextValue === lastAppliedTimeSliderValue) return;
+    lastAppliedTimeSliderValue = nextValue;
     refreshInfoPanel();
     updateMap();
   });

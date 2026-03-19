@@ -29,10 +29,12 @@ export function createTimeController({
     normalizeSubsetTimeSelection: uiController.normalizeSubsetTimeSelection,
     syncSubsetTimeRangeVisibility: uiController.syncSubsetTimeRangeVisibility,
     getSelectedTime: uiController.getSelectedTime,
+    getSelectedTimeIndex: uiController.getSelectedTimeIndex,
     getSelectedTimeLabel: uiController.getSelectedTimeLabel,
     updateTimeUI: uiController.updateTimeUI,
     toDateInputValue: parseHelpers.toDateInputValue,
     parseSubsetDateValue: parseHelpers.parseSubsetDateValue,
-    updateSubsetTimeInputsEnabled: uiController.updateSubsetTimeInputsEnabled
+    updateSubsetTimeInputsEnabled: uiController.updateSubsetTimeInputsEnabled,
+    hasMultipleTimes: uiController.hasMultipleTimes
   };
 }
