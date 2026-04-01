@@ -246,6 +246,16 @@ export function createMapController({
       range?.max != null ? formatScaleInputValue(Number(range.max)) : "";
   }
 
+  function getLegendDisplayTitle() {
+    const variable = String(state.variable || state.selectedLayer?.name || "").trim();
+    const variableLabel = variable ? `${variable.charAt(0).toUpperCase()}${variable.slice(1)}` : "";
+    const units = String(state.currentDataset?.metadata?.primary?.units || "").trim();
+    const timeCount = Number(state.currentDataset?.timeMetadata?.count || state.times?.length || 0);
+    const period =
+      timeCount === 1 ? "Annual " : timeCount === 12 ? "Monthly " : timeCount === 4 ? "Seasonal " : "";
+    return `${period}${variableLabel}${units ? ` (${units})` : ""}` || "Legend";
+  }
+
   function updateLegend(styleName, palette, min, max, bands, supportsPalette) {
     if (
       !legendPanel ||
@@ -274,9 +284,7 @@ export function createMapController({
     if (min != null && max != null)
       params.set("COLORSCALERANGE", `${min},${max}`);
     legendImage.src = `${state.currentDataset.wmsBase}?${params.toString()}`;
-    legendTitle.textContent = supportsPalette
-      ? paletteSelect?.selectedOptions?.[0]?.textContent || palette
-      : styleSelect?.selectedOptions?.[0]?.textContent || styleName;
+    legendTitle.textContent = getLegendDisplayTitle();
     legendMin.textContent = formatLegendValue(min);
     legendMax.textContent = formatLegendValue(max);
     legendPanel.classList.remove("hidden");
