@@ -37,7 +37,7 @@ export const FALLBACK_PALETTES = Object.keys(PALETTE_LABELS);
 
 export const DEFAULT_VARIABLE_LABELS = {
   pr: 'Total Precipitation',
-  tas: 'Temperature',
+  tas: 'Mean Temperature',
   tasmax: 'Daily Maximum Temperature',
   tasmin: 'Daily Minimum Temperature',
   tmax: 'Maximum Temperature',

@@ -343,7 +343,7 @@ export function createMapController({
       .toLowerCase();
 
     return /\b(year|yearly|annual|ann|yr)\b/.test(frequencyHints) || timeCount === 1
-      ? 200
+      ? 20
       : 1;
   }
 
