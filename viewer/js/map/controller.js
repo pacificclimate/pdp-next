@@ -249,7 +249,8 @@ export function createMapController({
   function getLegendDisplayTitle() {
     const variable = String(state.variable || state.selectedLayer?.name || "").trim();
     const variableLabel = variable ? `${variable.charAt(0).toUpperCase()}${variable.slice(1)}` : "";
-    const units = String(state.currentDataset?.metadata?.primary?.units || "").trim();
+    const rawUnits = String(state.currentDataset?.metadata?.primary?.units || "").trim();
+    const units = /^celsius$/i.test(rawUnits) ? "°C" : rawUnits;
     const timeCount = Number(state.currentDataset?.timeMetadata?.count || state.times?.length || 0);
     const period =
       timeCount === 1 ? "Annual " : timeCount === 12 ? "Monthly " : timeCount === 4 ? "Seasonal " : "";
