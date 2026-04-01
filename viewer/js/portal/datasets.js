@@ -155,13 +155,13 @@ export function createDatasetController({
     syncPaletteEnabled();
   }
 
-  async function loadDatasetFromUrlPath({ name, urlPath, variable, rendering = null, timeMetadata = null }) {
+  async function loadDatasetFromUrlPath({ name, urlPath, variable, metadata = null, rendering = null, timeMetadata = null }) {
     try {
       cancelPendingSubsetStatus?.();
       stopStatusSpinner();
       setStatus('Loading dataset…');
       legendPanel?.classList.add('hidden');
-      state.currentDataset = { name, urlPath, wmsBase: wmsBaseForUrlPath(urlPath), rendering, timeMetadata };
+      state.currentDataset = { name, urlPath, wmsBase: wmsBaseForUrlPath(urlPath), metadata, rendering, timeMetadata };
       state.variable = variable || null;
       state.layers = [];
       state.selectedLayer = null;

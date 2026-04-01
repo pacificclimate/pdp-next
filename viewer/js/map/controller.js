@@ -253,7 +253,7 @@ export function createMapController({
     const timeCount = Number(state.currentDataset?.timeMetadata?.count || state.times?.length || 0);
     const period =
       timeCount === 1 ? "Annual " : timeCount === 12 ? "Monthly " : timeCount === 4 ? "Seasonal " : "";
-    return `${period}${variableLabel}${units ? ` (${units})` : ""}` || "Legend";
+    return `${period}${variableLabel}${units ? ` (${units})` : ""}` || "—";
   }
 
   function updateLegend(styleName, palette, min, max, bands, supportsPalette) {
