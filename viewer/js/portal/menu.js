@@ -23,6 +23,14 @@ export function createMenuController({
 }) {
   const { datasetMenu, portalSelect } = ui;
   const { fetchJson, setStatus } = services;
+  function compareMenuLabels(a, b) {
+    const left = String(a || '').trim();
+    const right = String(b || '').trim();
+    const pinned = 'Monthly averages 1950-2007';
+    if (left === pinned && right !== pinned) return -1;
+    if (right === pinned && left !== pinned) return 1;
+    return left.localeCompare(right);
+  }
   function createMenuHeaderLi(label) {
     const item = document.createElement('li');
     item.className = 'menu-item';
@@ -72,7 +80,7 @@ export function createMenuController({
     if (!menuTree || typeof menuTree !== 'object') throw new Error('portal-meta is missing menu tree');
     const basenameIndex = buildBasenameIndex(metaPayload);
     let defaultSelection = null;
-    const topLabels = Object.keys(menuTree).sort((a, b) => a.localeCompare(b));
+    const topLabels = Object.keys(menuTree).sort(compareMenuLabels);
     if (topLabels.length) {
       const walk = (node, path = []) => {
         if (defaultSelection) return;
@@ -83,7 +91,7 @@ export function createMenuController({
           return;
         }
         if (!node || typeof node !== 'object') return;
-        const labels = Object.keys(node).sort((a, b) => a.localeCompare(b));
+        const labels = Object.keys(node).sort(compareMenuLabels);
         for (const label of labels) {
           walk(node[label], [...path, label]);
           if (defaultSelection) return;
@@ -138,7 +146,7 @@ export function createMenuController({
         li.appendChild(children);
         wireMenuHeaderToggle(header, children, expandByDefault);
 
-        nodeValue.map((b) => String(b || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b)).forEach((basename) => {
+        nodeValue.map((b) => String(b || '').trim()).filter(Boolean).sort(compareMenuLabels).forEach((basename) => {
           const entry = basenameIndex.get(basename);
           if (!entry?.thredds?.urlPath) return;
           const fileLi = document.createElement('li');
@@ -167,7 +175,7 @@ export function createMenuController({
       const { item, header, children } = createMenuHeaderLi(nodeLabel);
       containerUl.appendChild(item);
       wireMenuHeaderToggle(header, children, expandByDefault);
-      Object.keys(nodeValue).sort((a, b) => a.localeCompare(b)).forEach((childLabel) => renderNode(childLabel, nodeValue[childLabel], children, pathNow));
+      Object.keys(nodeValue).sort(compareMenuLabels).forEach((childLabel) => renderNode(childLabel, nodeValue[childLabel], children, pathNow));
     }
 
     topLabels.forEach((label) => renderNode(label, menuTree[label], datasetMenu));
