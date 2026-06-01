@@ -118,6 +118,7 @@ export function createMenuController({
               name: entry.basename || basename,
               urlPath: entry.thredds.urlPath,
               variable: entry?.metadata?.primary?.name || null,
+              metadata: entry?.metadata || null,
               rendering: entry?.rendering || null,
               timeMetadata: entry?.metadata?.time || null
             });
@@ -150,6 +151,7 @@ export function createMenuController({
               name: entry.basename || basename,
               urlPath: entry.thredds.urlPath,
               variable: entry?.metadata?.primary?.name || null,
+              metadata: entry?.metadata || null,
               rendering: entry?.rendering || null,
               timeMetadata: entry?.metadata?.time || null
             });
