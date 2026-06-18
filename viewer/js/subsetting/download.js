@@ -19,16 +19,11 @@ export function createSubsetDownloadController({
   const {
     startStatusSpinner,
     stopStatusSpinner,
-    setStatus,
-    suppressStatusUpdates,
-    unsuppressStatusUpdates,
-    forceSetStatus
+    setStatus
   } = status;
   const {
-    fetchText,
     fileServerUrlForUrlPath,
-    ncpartitionerBase,
-    threddsRoot
+    ncpartitionerBase
   } = services;
   const {
     getSubsetTimeMode,
@@ -37,10 +32,22 @@ export function createSubsetDownloadController({
   } = time;
 
   const BACKGROUND_STATUS_TIMEOUT_MS = 120000;
-  const BACKGROUND_STATUS_POLL_MS = 1000;
+  const BACKGROUND_STATUS_POLL_MS = 1500;
+  const BACKGROUND_STATUS_SLOW_POLL_MS = 10000;
+  const SUBSET_WAITING_STATUS = 'Subset submitted. Waiting for server...';
+  const SUBSET_LONG_WAIT_STATUS = 'Subset processing. Large requests may take several minutes. Waiting for server...';
   const SUBSET_DOWNLOAD_LABEL = 'Download subset';
 
+  const ROUTE = {
+    FULL_FILE: 'httpserver-full-file',
+    NCPARTITIONER: 'ncpartitioner'
+  };
+
+  // Thrown to short-circuit downloadSubset()
+  class SubsetCancelled extends Error {}
+
   let activeBackgroundStatus = null;
+  let activeNcPollRunId = null;
 
   function setSubsetDownloadBusy(isBusy) {
     subsetDownloadBtn.disabled = isBusy;
@@ -66,38 +73,30 @@ export function createSubsetDownloadController({
     }
     activeBackgroundStatus = null;
     setSubsetDownloadBusy(true);
-    setStatus('Subset submitted. Waiting for server... (0s)');
-    suppressStatusUpdates();
     const startedAt = Date.now();
+    let hasSwitchedToLongWait = false;
     const timer = setInterval(() => {
       if (!activeBackgroundStatus || activeBackgroundStatus.runId !== runId) {
         clearInterval(timer);
         return;
       }
-      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
       if ((Date.now() - startedAt) >= BACKGROUND_STATUS_TIMEOUT_MS) {
-        clearInterval(timer);
-        activeBackgroundStatus = null;
-        unsuppressStatusUpdates();
-        setSubsetDownloadBusy(false);
-        setStatus('Subset is still processing in the background. Check browser downloads; server confirmation may lag.');
-        return;
+        if (!hasSwitchedToLongWait) {
+          hasSwitchedToLongWait = true;
+          startStatusSpinner(SUBSET_LONG_WAIT_STATUS);
+        }
       }
-      forceSetStatus(`Subset submitted. Waiting for server... (${elapsedSeconds}s)`);
     }, BACKGROUND_STATUS_POLL_MS);
     activeBackgroundStatus = { runId, timer };
-    // Return a stop function the async artifact-watcher can always call,
-    // regardless of whether activeBackgroundStatus has been replaced by a later run.
     return () => {
       clearInterval(timer);
       if (activeBackgroundStatus?.runId === runId) activeBackgroundStatus = null;
-      unsuppressStatusUpdates();
       setSubsetDownloadBusy(false);
     };
   }
 
   function cancelPendingSubsetStatus() {
-    unsuppressStatusUpdates();
+    activeNcPollRunId = null;
     clearBackgroundSubsetStatus();
     stopStatusSpinner();
   }
@@ -120,229 +119,317 @@ export function createSubsetDownloadController({
       && outer.north >= (inner.north - tolerance);
   }
 
-  async function findOutputArtifactByBasename(basename, startUnixSec) {
-    const catalogUrl = `${threddsRoot()}catalog/output/catalog.xml?_ts=${Date.now()}`;
-    const xmlText = await fetchText(catalogUrl);
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xmlText, 'application/xml');
-    if (doc.querySelector('parsererror')) return null;
-    let best = null;
-    doc.querySelectorAll('dataset[urlPath]').forEach((ds) => {
-      const name = String(ds.getAttribute('name') || '');
-      const urlPath = String(ds.getAttribute('urlPath') || '');
-      if (!name.startsWith(`${basename}_`)) return;
-      const match = name.match(/_(\d+)\.(nc|nc4)$/i);
-      if (!match) return;
-      const ts = Number(match[1]);
-      if (!Number.isFinite(ts) || ts < (startUnixSec - 2)) return;
-      if (!best || ts > best.ts) best = { ts, name, urlPath };
-    });
-    return best;
+  /**
+   * Resolves the spatial extent for the subset based on the UI's spatial mode.
+   * Returns { bbox, useWholeSpatialDomain }.
+   * Throws SubsetCancelled if the user needs to take an action first (and has
+   * already been alerted) or if no extent could be determined.
+   */
+  function resolveSpatialExtent(spatialMode, run) {
+    const datasetBbox = state.selectedLayer?.bbox4326 || { west: -180, south: -90, east: 180, north: 90 };
+
+    if (spatialMode === 'whole') {
+      return { bbox: datasetBbox, useWholeSpatialDomain: true };
+    }
+
+    if (spatialMode === 'draw_bbox' || spatialMode === 'draw_point') {
+      const bbox = drawController.getDrawnBbox4326();
+      if (!bbox) {
+        alert(spatialMode === 'draw_point' ? 'Please add a point on the map first.' : 'Please draw a geometry on the map first.');
+        logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-drawn-bbox' });
+        throw new SubsetCancelled();
+      }
+      return { bbox, useWholeSpatialDomain: false };
+    }
+
+    const bbox = drawController.getCurrentViewBbox4326();
+    if (!bbox) {
+      alert('Could not determine map extent for bbox.');
+      logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-bbox' });
+      throw new SubsetCancelled();
+    }
+    const useWholeSpatialDomain = bboxContains(bbox, datasetBbox);
+    return { bbox: useWholeSpatialDomain ? datasetBbox : bbox, useWholeSpatialDomain };
   }
 
-  async function waitForOutputArtifact({ basename, startUnixSec, timeoutMs = 3600000, pollMs = 2000 }) {
-    const started = Date.now();
-    while ((Date.now() - started) < timeoutMs) {
-      try {
-        const hit = await findOutputArtifactByBasename(basename, startUnixSec);
-        if (hit) return hit;
-      } catch { /* artifact not yet in catalog — keep polling */ }
-      await sleep(pollMs);
+  /**
+   * Resolves the requested time range based on the UI's time mode.
+   * Returns { timeMode, rangeStart, rangeEnd }.
+   * Throws SubsetCancelled on invalid/cancelled input (already alerted).
+   */
+  async function resolveTimeRange(run) {
+    const subsetTimeMode = getSubsetTimeMode();
+    const useFull = subsetTimeMode === 'full';
+    const useCurrent = subsetTimeMode === 'current';
+    const timeMode = useCurrent ? 'current' : (useFull ? 'full' : 'range');
+
+    if (useCurrent) {
+      const selectedTime = getSelectedTime();
+      if (!selectedTime || selectedTime === '—') {
+        alert('No selected time available for this dataset.');
+        logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-selected-time' });
+        throw new SubsetCancelled();
+      }
+      return { timeMode, rangeStart: '', rangeEnd: '' };
     }
-    throw new Error('Timed out waiting for output artifact');
+
+    if (useFull) {
+      const rangeStart = state.selectedLayer?.time?.start || state.times?.[0] || '';
+      const rangeEnd = state.selectedLayer?.time?.end || state.times?.[state.times.length - 1] || '';
+      if (state.times.length > NCSS_WARN_TIMESTEPS) {
+        const proceed = window.confirm(`Full-range subset will request ${state.times.length} timesteps and may time out. Continue?`);
+        if (!proceed) {
+          logger.finishSubsetRun(run, 'cancelled', { reason: 'user-cancelled-full-time-warning' });
+          throw new SubsetCancelled();
+        }
+      }
+      return { timeMode, rangeStart, rangeEnd };
+    }
+
+    const startIso = parseSubsetDateValue(subsetTimeStart.value, 'start');
+    const endIso = parseSubsetDateValue(subsetTimeEnd.value, 'end');
+    if (startIso === null || endIso === null) {
+      alert('Please enter dates as YYYY, YYYY-MM, YYYY-MM-DD (or with / separators).');
+      logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-input' });
+      throw new SubsetCancelled();
+    }
+    const rangeStart = startIso || '';
+    const rangeEnd = endIso || '';
+    if (rangeStart && rangeEnd && Date.parse(rangeStart) > Date.parse(rangeEnd)) {
+      alert('Start date must be before end date.');
+      logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-range' });
+      throw new SubsetCancelled();
+    }
+    return { timeMode, rangeStart, rangeEnd };
+  }
+
+  /**
+   * Fast path: the whole spatial domain and full time range were requested,
+   * so we can just download the original file directly via HTTPServer
+   * instead of going through ncpartitioner.
+   */
+  async function runFullFileDownload(run, spatialMode) {
+    const fullFileUrl = fileServerUrlForUrlPath(state.currentDataset.urlPath);
+    const perfStart = Date.now();
+    startStatusSpinner('Starting full-file download (HTTPServer)…');
+    triggerBackgroundDownload(fullFileUrl);
+    stopStatusSpinner('Full-file download started.');
+    setSubsetDownloadBusy(false);
+
+    try {
+      const head = await fetch(`${fullFileUrl}?_ts=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
+      const bytes = Number(head.headers.get('content-length') || 0);
+      const elapsedMs = Date.now() - perfStart;
+      logger.logSubsetPerf({
+        mode: ROUTE.FULL_FILE,
+        file: state.currentDataset.urlPath,
+        elapsedMs,
+        bytes,
+        bytesPerSec: (bytes > 0 && elapsedMs > 0) ? (bytes / (elapsedMs / 1000)) : null,
+        at: new Date().toISOString()
+      });
+    } catch { /* perf logging is best-effort — don't let it block the download */ }
+
+    logger.finishSubsetRun(run, 'ok', { route: ROUTE.FULL_FILE, spatialMode, timeMode: 'full', file: state.currentDataset.urlPath });
+  }
+
+  /** Converts the resolved bbox/time range into ncpartitioner array indexes. */
+  function resolveNcpartitionerIndexes(bbox, useWholeSpatialDomain, indexInfo) {
+    const [latStart, latEnd] = useWholeSpatialDomain
+      ? [0, Math.max(0, indexInfo.lat.length - 1)]
+      : indexController.findBoundedIndexRange(indexInfo.lat, bbox.south, bbox.north);
+    const [lonStart, lonEnd] = useWholeSpatialDomain
+      ? [0, Math.max(0, indexInfo.lon.length - 1)]
+      : indexController.findBoundedIndexRange(indexInfo.lon, bbox.west, bbox.east);
+    return { latStart, latEnd, lonStart, lonEnd };
+  }
+
+  /** Submits the ncpartitioner job and returns the parsed job + status URL. */
+  async function submitNcpartitionerJob(targets) {
+    const filepath = `${state.currentDataset.urlPath}.nc`;
+    const partitionParams = new URLSearchParams();
+    partitionParams.set('filepath', filepath);
+    partitionParams.set('targets', targets);
+    const partitionUrl = `${ncpartitionerBase()}?${partitionParams.toString()}`;
+
+    startStatusSpinner('Submitting subset to ncpartitioner…');
+    const response = await fetch(partitionUrl, { method: 'GET' });
+    if (response.status !== 202) {
+      throw new Error(`Unexpected ncpartitioner response: ${response.status}`);
+    }
+
+    const job = await response.json();
+    if (!job?.job_id || !job?.status_url) {
+      throw new Error('Invalid ncpartitioner job response');
+    }
+    const statusUrl = new URL(job.status_url, partitionUrl).toString();
+    return { job, partitionUrl, statusUrl };
+  }
+
+  /**
+   * Polls the ncpartitioner job until it completes, fails, or the run is
+   * superseded/cancelled. On success, triggers the download and logs perf.
+   */
+  async function pollNcpartitionerJob({ run, job, partitionUrl, statusUrl, spatialMode, timeMode, indexMs, tPartitionStart }) {
+    startStatusSpinner(SUBSET_WAITING_STATUS);
+    const stopBackgroundStatus = startBackgroundSubsetStatus(run.id);
+    const requestStartedAt = Date.now();
+
+    while (activeNcPollRunId === run.id) {
+      const statusResponse = await fetch(statusUrl, { cache: 'no-store' });
+      if (activeNcPollRunId !== run.id) return;
+
+      if (statusResponse.status === 404) {
+        throw new Error('Subset job not found');
+      }
+      if (!statusResponse.ok) {
+        throw new Error(`Unexpected subset status response: ${statusResponse.status}`);
+      }
+
+      const statusPayload = await statusResponse.json();
+
+      if (statusPayload.status === 'complete') {
+        const rawDownloadUrl = statusPayload.download_url || job.download_url;
+        if (!rawDownloadUrl) throw new Error('Subset completed without a download URL');
+        const downloadUrl = new URL(rawDownloadUrl, partitionUrl).toString();
+
+        activeNcPollRunId = null;
+        stopBackgroundStatus();
+        stopStatusSpinner('Subset complete. Starting download…');
+        triggerBackgroundDownload(downloadUrl);
+
+        let bytes = 0;
+        try {
+          const head = await fetch(`${downloadUrl}?_ts=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
+          bytes = Number(head.headers.get('content-length') || 0);
+        } catch { /* perf logging is best-effort */ }
+
+        const tPartitionEnd = performance.now();
+        logger.logSubsetPerf({
+          mode: ROUTE.NCPARTITIONER,
+          file: state.currentDataset.urlPath,
+          output: job.output_filename || null,
+          elapsedMs: Math.round(tPartitionEnd - tPartitionStart),
+          bytes,
+          bytesPerSec: (bytes > 0 && (tPartitionEnd - tPartitionStart) > 0) ? (bytes / ((tPartitionEnd - tPartitionStart) / 1000)) : null,
+          spatialMode,
+          timeMode,
+          at: new Date().toISOString()
+        });
+        logger.finishSubsetRun(run, 'ok', {
+          route: ROUTE.NCPARTITIONER,
+          spatialMode,
+          timeMode,
+          indexMs,
+          jobId: job.job_id,
+          file: state.currentDataset.urlPath
+        });
+        return;
+      }
+
+      if (statusPayload.status === 'failed') {
+        throw new Error(statusPayload.error || 'Subset generation failed');
+      }
+      if (statusPayload.status !== 'running') {
+        throw new Error(`Unexpected subset job status: ${statusPayload.status || 'unknown'}`);
+      }
+
+      const pollDelay = (Date.now() - requestStartedAt) >= BACKGROUND_STATUS_TIMEOUT_MS
+        ? BACKGROUND_STATUS_SLOW_POLL_MS
+        : BACKGROUND_STATUS_POLL_MS;
+      await sleep(pollDelay);
+    }
+  }
+
+  /** Builds the ncpartitioner request and drives it through to download. */
+  async function runNcpartitionerSubset(run, { bbox, useWholeSpatialDomain, spatialMode, timeMode, rangeStart, rangeEnd, useCurrent }) {
+    const tIndexStart = performance.now();
+    startStatusSpinner('Converting bounds/time to ncpartitioner indexes…');
+    const indexInfo = await indexController.getNcpartitionerIndexInfo(state.currentDataset.urlPath);
+    const { latStart, latEnd, lonStart, lonEnd } = resolveNcpartitionerIndexes(bbox, useWholeSpatialDomain, indexInfo);
+    const tIndexEnd = performance.now();
+
+    let timeStartIso = '';
+    let timeEndIso = '';
+    if (useCurrent) {
+      const selectedTime = getSelectedTime();
+      timeStartIso = selectedTime;
+      timeEndIso = selectedTime;
+    } else if (rangeStart || rangeEnd) {
+      timeStartIso = rangeStart || state.times?.[0] || '';
+      timeEndIso = rangeEnd || state.times?.[state.times.length - 1] || timeStartIso;
+    } else {
+      timeStartIso = state.times?.[0] || '';
+      timeEndIso = state.times?.[state.times.length - 1] || timeStartIso;
+    }
+
+    const [timeStart, timeEnd] = indexController.findTimeIndexRange(state.times || [], timeStartIso, timeEndIso);
+    const targets = [
+      `time[${timeStart}:${timeEnd}]`,
+      `lat[${latStart}:${latEnd}]`,
+      `lon[${lonStart}:${lonEnd}]`,
+      `${state.variable}[${timeStart}:${timeEnd}][${latStart}:${latEnd}][${lonStart}:${lonEnd}]`
+    ].join(',');
+
+    const tPartitionStart = performance.now();
+    const { job, partitionUrl, statusUrl } = await submitNcpartitionerJob(targets);
+
+    await pollNcpartitionerJob({
+      run,
+      job,
+      partitionUrl,
+      statusUrl,
+      spatialMode,
+      timeMode,
+      indexMs: Math.round(tIndexEnd - tIndexStart),
+      tPartitionStart
+    });
   }
 
   async function downloadSubset() {
     if (subsetDownloadBtn.disabled) return;
-    cancelPendingSubsetStatus();
     if (!state.currentDataset) return alert('Please select a dataset first');
     if (!state.variable) return alert('Could not infer variable for this file.');
+
     setSubsetDownloadBusy(true);
     const run = logger.startSubsetRun('subset-download', { portal: portal.id, dataset: state.currentDataset?.urlPath || null });
-    const spatialMode = (subsetSpatialMode?.value || 'viewport').toLowerCase();
-    const datasetBbox = state.selectedLayer?.bbox4326 || { west: -180, south: -90, east: 180, north: 90 };
-    let bbox = null;
-    let useWholeSpatialDomain = spatialMode === 'whole';
-    if (spatialMode === 'whole') {
-      bbox = datasetBbox;
-    } else if (spatialMode === 'draw_bbox' || spatialMode === 'draw_point') {
-      bbox = drawController.getDrawnBbox4326();
-      if (!bbox) {
-        setSubsetDownloadBusy(false);
-        alert(spatialMode === 'draw_point' ? 'Please add a point on the map first.' : 'Please draw a geometry on the map first.');
-        logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-drawn-bbox' });
-        return;
-      }
-    } else {
-      bbox = drawController.getCurrentViewBbox4326();
-      useWholeSpatialDomain = bboxContains(bbox, datasetBbox);
-      if (useWholeSpatialDomain) bbox = datasetBbox;
-    }
-    if (!bbox) {
-      setSubsetDownloadBusy(false);
-      alert('Could not determine map extent for bbox.');
-      logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-bbox' });
-      return;
-    }
+    activeNcPollRunId = run.id;
 
-    const subsetTimeMode = getSubsetTimeMode();
-    const useFull = subsetTimeMode === 'full';
-    const useCurrent = subsetTimeMode === 'current';
-    let rangeStart = '';
-    let rangeEnd = '';
-    if (useCurrent) {
-      const selectedTime = getSelectedTime();
-      if (!selectedTime || selectedTime === '—') {
-        setSubsetDownloadBusy(false);
-        alert('No selected time available for this dataset.');
-        logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-selected-time' });
-        return;
-      }
-    } else if (useFull) {
-      rangeStart = state.selectedLayer?.time?.start || state.times?.[0] || '';
-      rangeEnd = state.selectedLayer?.time?.end || state.times?.[state.times.length - 1] || '';
-      if (state.times.length > NCSS_WARN_TIMESTEPS) {
-        const proceed = window.confirm(`Full-range subset will request ${state.times.length} timesteps and may time out. Continue?`);
-        if (!proceed) {
-          setSubsetDownloadBusy(false);
-          logger.finishSubsetRun(run, 'cancelled', { reason: 'user-cancelled-full-time-warning' });
-          return;
-        }
-      }
-    } else {
-      const startIso = parseSubsetDateValue(subsetTimeStart.value, 'start');
-      const endIso = parseSubsetDateValue(subsetTimeEnd.value, 'end');
-      if (startIso === null || endIso === null) {
-        setSubsetDownloadBusy(false);
-        alert('Please enter dates as YYYY, YYYY-MM, YYYY-MM-DD (or with / separators).');
-        logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-input' });
-        return;
-      }
-      rangeStart = startIso || '';
-      rangeEnd = endIso || '';
-      if (rangeStart && rangeEnd && Date.parse(rangeStart) > Date.parse(rangeEnd)) {
-        setSubsetDownloadBusy(false);
-        alert('Start date must be before end date.');
-        logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-range' });
-        return;
-      }
-    }
+    const spatialMode = (subsetSpatialMode?.value || 'viewport').toLowerCase();
+    let timeMode = 'range';
 
     try {
-      if (useWholeSpatialDomain && useFull) {
-        const fullFileUrl = fileServerUrlForUrlPath(state.currentDataset.urlPath);
-        const perfStart = Date.now();
-        startStatusSpinner('Starting full-file download (HTTPServer)…');
-        triggerBackgroundDownload(fullFileUrl);
-        stopStatusSpinner('Full-file download started.');
-        setSubsetDownloadBusy(false);
-        try {
-          const head = await fetch(`${fullFileUrl}?_ts=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
-          const bytes = Number(head.headers.get('content-length') || 0);
-          const elapsedMs = Date.now() - perfStart;
-          logger.logSubsetPerf({
-            mode: 'httpserver-full-file',
-            file: state.currentDataset.urlPath,
-            elapsedMs,
-            bytes,
-            bytesPerSec: (bytes > 0 && elapsedMs > 0) ? (bytes / (elapsedMs / 1000)) : null,
-            at: new Date().toISOString()
-          });
-        } catch { /* perf logging is best-effort — don't let it block the download */ }
-        logger.finishSubsetRun(run, 'ok', { route: 'httpserver-full-file', spatialMode, timeMode: 'full', file: state.currentDataset.urlPath });
+      const { bbox, useWholeSpatialDomain } = resolveSpatialExtent(spatialMode, run);
+      const { timeMode: resolvedTimeMode, rangeStart, rangeEnd } = await resolveTimeRange(run);
+      timeMode = resolvedTimeMode;
+
+      if (useWholeSpatialDomain && timeMode === 'full') {
+        await runFullFileDownload(run, spatialMode);
         return;
       }
 
-      const tIndexStart = performance.now();
-      startStatusSpinner('Converting bounds/time to ncpartitioner indexes…');
-      const indexInfo = await indexController.getNcpartitionerIndexInfo(state.currentDataset.urlPath);
-      const [latStart, latEnd] = useWholeSpatialDomain
-        ? [0, Math.max(0, indexInfo.lat.length - 1)]
-        : indexController.findBoundedIndexRange(indexInfo.lat, bbox.south, bbox.north);
-      const [lonStart, lonEnd] = useWholeSpatialDomain
-        ? [0, Math.max(0, indexInfo.lon.length - 1)]
-        : indexController.findBoundedIndexRange(indexInfo.lon, bbox.west, bbox.east);
-      const tIndexEnd = performance.now();
-
-      let timeStartIso = '';
-      let timeEndIso = '';
-      if (useCurrent) {
-        const selectedTime = getSelectedTime();
-        timeStartIso = selectedTime;
-        timeEndIso = selectedTime;
-      } else if (rangeStart || rangeEnd) {
-        timeStartIso = rangeStart || state.times?.[0] || '';
-        timeEndIso = rangeEnd || state.times?.[state.times.length - 1] || timeStartIso;
-      } else {
-        timeStartIso = state.times?.[0] || '';
-        timeEndIso = state.times?.[state.times.length - 1] || timeStartIso;
-      }
-
-      const [timeStart, timeEnd] = indexController.findTimeIndexRange(state.times || [], timeStartIso, timeEndIso);
-      const targets = [
-        `time[${timeStart}:${timeEnd}]`,
-        `lat[${latStart}:${latEnd}]`,
-        `lon[${lonStart}:${lonEnd}]`,
-        `${state.variable}[${timeStart}:${timeEnd}][${latStart}:${latEnd}][${lonStart}:${lonEnd}]`
-      ].join(',');
-      const filepath = `${state.currentDataset.urlPath}.nc`;
-      const partitionParams = new URLSearchParams();
-      partitionParams.set('filepath', filepath);
-      partitionParams.set('targets', targets);
-      const partitionUrl = `${ncpartitionerBase()}?${partitionParams.toString()}`;
-      const tPartitionStart = performance.now();
-      startStatusSpinner('Building subset with ncpartitioner…');
-      const startUnixSec = Math.floor(Date.now() / 1000);
-      const outputBaseName = state.currentDataset.urlPath.replace(/^.*\//, '').replace(/\.(nc|nc4)$/i, '');
-      triggerBackgroundDownload(partitionUrl);
-      stopStatusSpinner();
-      const stopBackgroundStatus = startBackgroundSubsetStatus(run.id);
-      logger.finishSubsetRun(run, 'ok', {
-        route: 'ncpartitioner',
+      await runNcpartitionerSubset(run, {
+        bbox,
+        useWholeSpatialDomain,
         spatialMode,
-        timeMode: useCurrent ? 'current' : (useFull ? 'full' : 'range'),
-        indexMs: Math.round(tIndexEnd - tIndexStart),
-        file: state.currentDataset.urlPath
+        timeMode,
+        rangeStart,
+        rangeEnd,
+        useCurrent: timeMode === 'current'
       });
-      void (async () => {
-        try {
-          const artifact = await waitForOutputArtifact({
-            basename: outputBaseName,
-            startUnixSec,
-            timeoutMs: BACKGROUND_STATUS_TIMEOUT_MS
-          });
-          const downloadUrl = `${threddsRoot()}fileServer/${artifact.urlPath}`;
-          const head = await fetch(`${downloadUrl}?_ts=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
-          const bytes = Number(head.headers.get('content-length') || 0);
-          const tPartitionEnd = performance.now();
-          stopBackgroundStatus();
-          setStatus('Generation complete, starting download');
-          logger.logSubsetPerf({
-            mode: 'ncpartitioner',
-            file: state.currentDataset.urlPath,
-            output: artifact.name,
-            elapsedMs: Math.round(tPartitionEnd - tPartitionStart),
-            bytes,
-            bytesPerSec: (bytes > 0 && (tPartitionEnd - tPartitionStart) > 0) ? (bytes / ((tPartitionEnd - tPartitionStart) / 1000)) : null,
-            spatialMode,
-            timeMode: useCurrent ? 'current' : (useFull ? 'full' : 'range'),
-            at: new Date().toISOString()
-          });
-        } catch (artifactError) {
-          stopBackgroundStatus();
-          setStatus('Subset is still processing in the background. Check browser downloads; server confirmation may lag.');
-          console.warn('Could not verify ncpartitioner output artifact:', artifactError);
-        }
-      })();
-      return;
     } catch (error) {
+      if (error instanceof SubsetCancelled) {
+        setSubsetDownloadBusy(false);
+        return;
+      }
+      activeNcPollRunId = null;
       console.error(error);
       cancelPendingSubsetStatus();
       stopStatusSpinner(`Subset failed: ${error?.message || error}`, true);
       logger.finishSubsetRun(run, 'error', {
-        route: 'ncpartitioner',
+        route: ROUTE.NCPARTITIONER,
         spatialMode,
-        timeMode: useCurrent ? 'current' : (useFull ? 'full' : 'range'),
+        timeMode,
         error: String(error?.message || error || 'unknown')
       });
       alert(`Subset failed: ${error?.message || error}`);
