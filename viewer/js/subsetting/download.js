@@ -251,9 +251,10 @@ export function createSubsetDownloadController({
     partitionParams.set('filepath', filepath);
     partitionParams.set('targets', targets);
     const partitionUrl = `${ncpartitionerBase()}?${partitionParams.toString()}`;
+    const partitionRequestUrl = new URL(partitionUrl, window.location.href).toString();
 
     startStatusSpinner('Submitting subset to ncpartitioner…');
-    const response = await fetch(partitionUrl, { method: 'GET' });
+    const response = await fetch(partitionRequestUrl, { method: 'GET' });
     if (response.status !== 202) {
       throw new Error(`Unexpected ncpartitioner response: ${response.status}`);
     }
@@ -262,8 +263,8 @@ export function createSubsetDownloadController({
     if (!job?.job_id || !job?.status_url) {
       throw new Error('Invalid ncpartitioner job response');
     }
-    const statusUrl = new URL(job.status_url, partitionUrl).toString();
-    return { job, partitionUrl, statusUrl };
+    const statusUrl = new URL(job.status_url, partitionRequestUrl).toString();
+    return { job, partitionUrl: partitionRequestUrl, statusUrl };
   }
 
   /**
