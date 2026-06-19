@@ -48,6 +48,7 @@ export function createSubsetDownloadController({
 
   let activeBackgroundStatus = null;
   let activeNcPollRunId = null;
+  const ncpartitionerPublicRoot = new URL(ncpartitionerBase(), window.location.origin);
 
   function setSubsetDownloadBusy(isBusy) {
     subsetDownloadBtn.disabled = isBusy;
@@ -250,8 +251,7 @@ export function createSubsetDownloadController({
     const partitionParams = new URLSearchParams();
     partitionParams.set('filepath', filepath);
     partitionParams.set('targets', targets);
-    const partitionUrl = `${ncpartitionerBase()}?${partitionParams.toString()}`;
-    const partitionRequestUrl = new URL(partitionUrl, window.location.href).toString();
+    const partitionRequestUrl = new URL(`partition/?${partitionParams.toString()}`, ncpartitionerPublicRoot).toString();
 
     startStatusSpinner('Submitting subset to ncpartitioner…');
     const response = await fetch(partitionRequestUrl, { method: 'GET' });
@@ -263,15 +263,15 @@ export function createSubsetDownloadController({
     if (!job?.job_id || !job?.status_url) {
       throw new Error('Invalid ncpartitioner job response');
     }
-    const statusUrl = new URL(job.status_url, partitionRequestUrl).toString();
-    return { job, partitionUrl: partitionRequestUrl, statusUrl };
+    const statusUrl = new URL(job.status_url, ncpartitionerPublicRoot).toString(); 
+    return { job, statusUrl };
   }
 
   /**
    * Polls the ncpartitioner job until it completes, fails, or the run is
    * superseded/cancelled. On success, triggers the download and logs perf.
    */
-  async function pollNcpartitionerJob({ run, job, partitionUrl, statusUrl, spatialMode, timeMode, indexMs, tPartitionStart }) {
+  async function pollNcpartitionerJob({ run, job, statusUrl, spatialMode, timeMode, indexMs, tPartitionStart }) {
     startStatusSpinner(SUBSET_WAITING_STATUS);
     const stopBackgroundStatus = startBackgroundSubsetStatus(run.id);
     const requestStartedAt = Date.now();
@@ -290,9 +290,8 @@ export function createSubsetDownloadController({
       const statusPayload = await statusResponse.json();
 
       if (statusPayload.status === 'complete') {
-        const rawDownloadUrl = statusPayload.download_url || job.download_url;
-        if (!rawDownloadUrl) throw new Error('Subset completed without a download URL');
-        const downloadUrl = new URL(rawDownloadUrl, partitionUrl).toString();
+        const downloadUrl = statusPayload.download_url || job.download_url;
+        if (!downloadUrl) throw new Error('Subset completed without a download URL');
 
         activeNcPollRunId = null;
         stopBackgroundStatus();
@@ -373,12 +372,11 @@ export function createSubsetDownloadController({
     ].join(',');
 
     const tPartitionStart = performance.now();
-    const { job, partitionUrl, statusUrl } = await submitNcpartitionerJob(targets);
+    const { job, statusUrl } = await submitNcpartitionerJob(targets);
 
     await pollNcpartitionerJob({
       run,
       job,
-      partitionUrl,
       statusUrl,
       spatialMode,
       timeMode,
