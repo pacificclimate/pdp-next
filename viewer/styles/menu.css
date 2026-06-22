@@ -1,0 +1,97 @@
+.menu-tree,
+.menu-children,
+.variable-list {
+  margin-left: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.menu-item,
+.menu-subitem {
+  margin-bottom: 8px;
+}
+
+.menu-subitem {
+  margin-bottom: 3px;
+}
+
+.menu-header,
+.menu-link,
+.variable-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.menu-header {
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  color: var(--pcic-blue);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.menu-header:hover {
+  background: var(--bg-subtle);
+}
+
+.menu-toggle,
+.menu-link .expand-icon {
+  color: var(--text-muted);
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.menu-header.expanded .menu-toggle,
+.menu-link.expanded .expand-icon {
+  transform: rotate(180deg);
+}
+
+.menu-children,
+.variable-list {
+  display: none;
+  margin-left: 20px;
+}
+
+.menu-children {
+  margin-top: 5px;
+}
+
+.variable-list {
+  margin-top: 3px;
+}
+
+.menu-children.show,
+.variable-list.show {
+  display: block;
+}
+
+.menu-link {
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--text-dark);
+  font-size: 13px;
+}
+
+.menu-link:hover,
+.variable-item:hover {
+  background: var(--bg-hover);
+}
+
+.variable-item {
+  margin: 2px 0;
+  padding: 5px 12px;
+  cursor: pointer;
+  color: var(--text-green);
+  font-size: 13px;
+}
+
+.variable-item.active {
+  background: var(--pcic-blue);
+  color: var(--bg-panel);
+  font-weight: 600;
+}

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.env
+*/logs/*
+*/ncpartitioner-output/*
+node_modules/
