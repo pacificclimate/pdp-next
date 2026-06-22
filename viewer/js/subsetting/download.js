@@ -34,6 +34,7 @@ export function createSubsetDownloadController({
   const BACKGROUND_STATUS_TIMEOUT_MS = 120000;
   const BACKGROUND_STATUS_POLL_MS = 1500;
   const BACKGROUND_STATUS_SLOW_POLL_MS = 10000;
+  const FULL_TIME_SUGGESTION_THRESHOLD = 0.6;
   const SUBSET_WAITING_STATUS = 'Subset submitted. Waiting for server...';
   const SUBSET_LONG_WAIT_STATUS = 'Subset processing. Large requests may take several minutes. Waiting for server...';
   const SUBSET_DOWNLOAD_LABEL = 'Download subset';
@@ -349,6 +350,7 @@ export function createSubsetDownloadController({
     const indexInfo = await indexController.getNcpartitionerIndexInfo(state.currentDataset.urlPath);
     const { latStart, latEnd, lonStart, lonEnd } = resolveNcpartitionerIndexes(bbox, useWholeSpatialDomain, indexInfo);
     const tIndexEnd = performance.now();
+    let effectiveTimeMode = timeMode;
 
     let timeStartIso = '';
     let timeEndIso = '';
@@ -364,7 +366,23 @@ export function createSubsetDownloadController({
       timeEndIso = state.times?.[state.times.length - 1] || timeStartIso;
     }
 
-    const [timeStart, timeEnd] = indexController.findTimeIndexRange(state.times || [], timeStartIso, timeEndIso);
+    let [timeStart, timeEnd] = indexController.findTimeIndexRange(state.times || [], timeStartIso, timeEndIso);
+    const totalTimesteps = Array.isArray(state.times) ? state.times.length : 0;
+    const selectedTimesteps = (timeEnd - timeStart) + 1;
+    const requestedFraction = totalTimesteps > 0 ? (selectedTimesteps / totalTimesteps) : 0;
+
+    if (timeMode !== 'full' && totalTimesteps > 0 && requestedFraction > FULL_TIME_SUGGESTION_THRESHOLD) {
+      const switchToFull = window.confirm(
+        `This request covers ${Math.round(requestedFraction * 100)}% of the available timesteps. `
+        + 'Switch to the full time range for this spatial subset instead? This is usually faster for you and better for other users.'
+      );
+      if (switchToFull) {
+        timeStart = 0;
+        timeEnd = totalTimesteps - 1;
+        effectiveTimeMode = 'full';
+      }
+    }
+
     const targets = [
       `time[${timeStart}:${timeEnd}]`,
       `lat[${latStart}:${latEnd}]`,
@@ -380,7 +398,7 @@ export function createSubsetDownloadController({
       job,
       statusUrl,
       spatialMode,
-      timeMode,
+      timeMode: effectiveTimeMode,
       indexMs: Math.round(tIndexEnd - tIndexStart),
       tPartitionStart
     });
