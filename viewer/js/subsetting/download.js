@@ -60,40 +60,31 @@ export function createSubsetDownloadController({
   }
 
   function clearBackgroundSubsetStatus(message = '', isError = false) {
-    if (activeBackgroundStatus?.timer) {
-      clearInterval(activeBackgroundStatus.timer);
-    }
     activeBackgroundStatus = null;
     setSubsetDownloadBusy(false);
     if (message) setStatus(message, isError);
   }
 
   function startBackgroundSubsetStatus(runId) {
-    if (activeBackgroundStatus?.timer) {
-      clearInterval(activeBackgroundStatus.timer);
-    }
     activeBackgroundStatus = null;
     setSubsetDownloadBusy(true);
-    const startedAt = Date.now();
-    let hasSwitchedToLongWait = false;
-    const timer = setInterval(() => {
-      if (!activeBackgroundStatus || activeBackgroundStatus.runId !== runId) {
-        clearInterval(timer);
-        return;
-      }
-      if ((Date.now() - startedAt) >= BACKGROUND_STATUS_TIMEOUT_MS) {
-        if (!hasSwitchedToLongWait) {
-          hasSwitchedToLongWait = true;
-          startStatusSpinner(SUBSET_LONG_WAIT_STATUS);
-        }
-      }
-    }, BACKGROUND_STATUS_POLL_MS);
-    activeBackgroundStatus = { runId, timer };
+    activeBackgroundStatus = { runId };
     return () => {
-      clearInterval(timer);
       if (activeBackgroundStatus?.runId === runId) activeBackgroundStatus = null;
       setSubsetDownloadBusy(false);
     };
+  }
+
+  function queuePositionFor(payload) {
+    const value = payload?.queue_position ?? payload?.queuePosition ?? null;
+    return Number.isInteger(value) && value > 0 ? value : null;
+  }
+
+  function waitingStatusMessage(queuePosition, isLongWait = false) {
+    const baseMessage = isLongWait ? SUBSET_LONG_WAIT_STATUS : SUBSET_WAITING_STATUS;
+    return queuePosition !== null
+      ? `${baseMessage} Queue position: ${queuePosition}.`
+      : baseMessage;
   }
 
   function cancelPendingSubsetStatus() {
@@ -263,7 +254,7 @@ export function createSubsetDownloadController({
     if (!job?.job_id || !job?.status_url) {
       throw new Error('Invalid ncpartitioner job response');
     }
-    const statusUrl = new URL(job.status_url, ncpartitionerPublicRoot).toString(); 
+    const statusUrl = new URL(job.status_url, ncpartitionerPublicRoot).toString();
     return { job, statusUrl };
   }
 
@@ -272,7 +263,9 @@ export function createSubsetDownloadController({
    * superseded/cancelled. On success, triggers the download and logs perf.
    */
   async function pollNcpartitionerJob({ run, job, statusUrl, spatialMode, timeMode, indexMs, tPartitionStart }) {
-    startStatusSpinner(SUBSET_WAITING_STATUS);
+    let queuePosition = queuePositionFor(job);
+    let isLongWait = false;
+    startStatusSpinner(waitingStatusMessage(queuePosition, isLongWait));
     const stopBackgroundStatus = startBackgroundSubsetStatus(run.id);
     const requestStartedAt = Date.now();
 
@@ -330,11 +323,19 @@ export function createSubsetDownloadController({
       if (statusPayload.status === 'failed') {
         throw new Error(statusPayload.error || 'Subset generation failed');
       }
-      if (statusPayload.status !== 'running') {
+      if (statusPayload.status !== 'running' && statusPayload.status !== 'queued') {
         throw new Error(`Unexpected subset job status: ${statusPayload.status || 'unknown'}`);
       }
 
-      const pollDelay = (Date.now() - requestStartedAt) >= BACKGROUND_STATUS_TIMEOUT_MS
+      const nextQueuePosition = queuePositionFor(statusPayload);
+      const nextIsLongWait = (Date.now() - requestStartedAt) >= BACKGROUND_STATUS_TIMEOUT_MS;
+      if (nextQueuePosition !== queuePosition || nextIsLongWait !== isLongWait) {
+        queuePosition = nextQueuePosition;
+        isLongWait = nextIsLongWait;
+        startStatusSpinner(waitingStatusMessage(queuePosition, isLongWait));
+      }
+
+      const pollDelay = nextIsLongWait
         ? BACKGROUND_STATUS_SLOW_POLL_MS
         : BACKGROUND_STATUS_POLL_MS;
       await sleep(pollDelay);
