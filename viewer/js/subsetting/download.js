@@ -81,6 +81,30 @@ export function createSubsetDownloadController({
     return Number.isInteger(value) && value > 0 ? value : null;
   }
 
+  async function promptLargeSubsetChoice(requestedFraction) {
+    const message = `This request covers ${Math.round(requestedFraction * 100)}% of the available timesteps. `
+      + 'Downloading the full time range for this spatial subset is usually faster for you and better for other users.';
+    const dialog = document.getElementById('largeSubsetDialog');
+    const messageEl = document.getElementById('largeSubsetDialogMessage');
+
+    if (!(dialog instanceof HTMLDialogElement) || !messageEl) {
+      const continueSubset = window.confirm(
+        `${message}\n\nPress OK to continue with subset generation.\nPress Cancel to switch to the full time range instead.`
+      );
+      return continueSubset ? 'continue' : 'full';
+    }
+
+    messageEl.textContent = message;
+    dialog.returnValue = 'continue';
+    dialog.showModal();
+
+    const choice = await new Promise((resolve) => {
+      dialog.addEventListener('close', () => resolve(dialog.returnValue || 'continue'), { once: true });
+    });
+
+    return choice === 'full' ? 'full' : 'continue';
+  }
+
   function waitingStatusMessage(queuePosition, isLongWait = false) {
     const baseMessage = isLongWait ? SUBSET_LONG_WAIT_STATUS : SUBSET_WAITING_STATUS;
     return queuePosition !== null
@@ -390,14 +414,15 @@ export function createSubsetDownloadController({
     const requestedFraction = totalTimesteps > 0 ? (selectedTimesteps / totalTimesteps) : 0;
 
     if (timeMode !== 'full' && totalTimesteps > 0 && requestedFraction > FULL_TIME_SUGGESTION_THRESHOLD) {
-      const switchToFull = window.confirm(
-        `This request covers ${Math.round(requestedFraction * 100)}% of the available timesteps. `
-        + 'Switch to the full time range for this spatial subset instead? This is usually faster for you and better for other users.'
-      );
-      if (switchToFull) {
+      const choice = await promptLargeSubsetChoice(requestedFraction);
+      if (choice === 'full') {
         timeStart = 0;
         timeEnd = totalTimesteps - 1;
         effectiveTimeMode = 'full';
+        if (useWholeSpatialDomain) {
+          await runFullFileDownload(run, spatialMode);
+          return;
+        }
       }
     }
 

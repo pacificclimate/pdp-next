@@ -203,6 +203,17 @@
     </footer>
   </div>
 
+  <dialog id="largeSubsetDialog" class="choice-dialog">
+    <form method="dialog" class="choice-dialog-card">
+      <h3 class="choice-dialog-title">Large Time Selection</h3>
+      <p id="largeSubsetDialogMessage" class="choice-dialog-message"></p>
+      <div class="choice-dialog-actions">
+        <button id="largeSubsetContinueBtn" class="btn btn-secondary" value="continue" type="submit">Continue subset generation</button>
+        <button id="largeSubsetFullBtn" class="btn btn-primary" value="full" type="submit">Switch to full time download</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
   <script type="module" src="/pdp-next/js/app.js"></script>
