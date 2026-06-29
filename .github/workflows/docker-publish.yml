@@ -1,0 +1,40 @@
+name: Docker Publishing
+
+on:
+  push:
+    branches:
+      - '*'
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  publish-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.pcicdevops_at_dockerhub_username }}
+          password: ${{ secrets.pcicdevops_at_dockerhub_password }}
+
+      - name: Build and Publish Viewer
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./viewer/Dockerfile
+          push: true
+          tags: |
+            pcic/pdp-next-viewer:${{ github.ref_name }}
+            ${{ github.ref_name == 'main' && 'pcic/pdp-next-viewer:latest' || '' }}
+
+      - name: Build and Publish THREDDS
+        uses: docker/build-push-action@v4
+        with:
+          context: ./thredds
+          file: ./thredds/Dockerfile.thredds
+          push: true
+          tags: |
+            pcic/pdp-next-thredds:${{ github.ref_name }}
+            ${{ github.ref_name == 'main' && 'pcic/pdp-next-thredds:latest' || '' }}

@@ -1,0 +1,13 @@
+{
+  "name": "pdp-next",
+  "private": true,
+  "scripts": {
+    "lint": "eslint 'viewer/js/**/*.js' 'viewer/js/*.js'",
+    "lint:fix": "eslint --fix 'viewer/js/**/*.js' 'viewer/js/*.js'",
+    "lint:ci": "eslint --max-warnings=999 'viewer/js/**/*.js' 'viewer/js/*.js'"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0"
+  }
+}
