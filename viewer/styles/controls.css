@@ -35,7 +35,7 @@
 .color-row,
 .download-actions,
 .time-mode-group,
-.checkbox-group {
+.choice-group {
   display: flex;
   align-items: center;
 }
@@ -47,7 +47,7 @@
 
 .ensemble-selector label,
 .color-row label,
-.checkbox-option {
+.choice-option {
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 600;
@@ -65,7 +65,7 @@
   flex: 0 0 80px;
 }
 
-.color-row input,
+.color-row input:not([type="radio"]),
 .color-row select,
 .format-select {
   width: 100%;
@@ -78,7 +78,7 @@
   font-weight: 500;
 }
 
-.color-row input,
+.color-row input:not([type="radio"]),
 .color-row select {
   flex: 1;
 }
@@ -90,16 +90,24 @@
   border-radius: 3px;
 }
 
-.checkbox-group {
+.choice-group {
   flex: 1;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.checkbox-option {
+.choice-option {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.choice-option input[type="radio"] {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--pcic-accent);
 }
 
 .btn,

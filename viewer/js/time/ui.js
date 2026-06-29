@@ -49,7 +49,7 @@ export function createTimeUiController({
     normalizeSubsetTimeSelection();
     const rangeAllowed = allowsRangeSubset();
     const showRangeSubset = rangeAllowed;
-    subsetTimeModeRange.closest('.checkbox-option')?.classList.toggle('disabled', !rangeAllowed);
+    subsetTimeModeRange.closest('.choice-option')?.classList.toggle('disabled', !rangeAllowed);
     subsetTimeModeRange.disabled = !rangeAllowed;
     subsetTimeStart?.closest('.color-row')?.classList.toggle('is-hidden', !showRangeSubset);
     subsetTimeEnd?.closest('.color-row')?.classList.toggle('is-hidden', !showRangeSubset);
