@@ -193,6 +193,16 @@ export function createSubsetDownloadController({
       logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-range' });
       throw new SubsetCancelled();
     }
+
+    const fullRangeStart = state.selectedLayer?.time?.start || state.times?.[0] || '';
+    const fullRangeEnd = state.selectedLayer?.time?.end || state.times?.[state.times.length - 1] || fullRangeStart;
+    if (state.times.length) {
+      const [timeStartIndex, timeEndIndex] = indexController.findTimeIndexRange(state.times, rangeStart || fullRangeStart, rangeEnd || fullRangeEnd);
+      if (timeStartIndex === 0 && timeEndIndex === (state.times.length - 1)) {
+        return { timeMode: 'full', rangeStart: fullRangeStart, rangeEnd: fullRangeEnd };
+      }
+    }
+
     return { timeMode, rangeStart, rangeEnd };
   }
 
@@ -239,7 +249,9 @@ export function createSubsetDownloadController({
 
   /** Submits the ncpartitioner job and returns the parsed job + status URL. */
   async function submitNcpartitionerJob(targets) {
-    const filepath = `${state.currentDataset.urlPath}.nc`;
+    const filepath = /\.nc4?$/i.test(state.currentDataset.urlPath)
+      ? state.currentDataset.urlPath
+      : `${state.currentDataset.urlPath}.nc`;
     const partitionParams = new URLSearchParams();
     partitionParams.set('filepath', filepath);
     partitionParams.set('targets', targets);
@@ -351,6 +363,7 @@ export function createSubsetDownloadController({
     const { latStart, latEnd, lonStart, lonEnd } = resolveNcpartitionerIndexes(bbox, useWholeSpatialDomain, indexInfo);
     const tIndexEnd = performance.now();
     let effectiveTimeMode = timeMode;
+    const actualTimeCount = Math.max(0, Number(indexInfo.timeCount || 0));
 
     let timeStartIso = '';
     let timeEndIso = '';
@@ -367,7 +380,12 @@ export function createSubsetDownloadController({
     }
 
     let [timeStart, timeEnd] = indexController.findTimeIndexRange(state.times || [], timeStartIso, timeEndIso);
-    const totalTimesteps = Array.isArray(state.times) ? state.times.length : 0;
+    if (actualTimeCount > 0) {
+      timeStart = Math.max(0, Math.min(timeStart, actualTimeCount - 1));
+      timeEnd = Math.max(timeStart, Math.min(timeEnd, actualTimeCount - 1));
+    }
+
+    const totalTimesteps = actualTimeCount || (Array.isArray(state.times) ? state.times.length : 0);
     const selectedTimesteps = (timeEnd - timeStart) + 1;
     const requestedFraction = totalTimesteps > 0 ? (selectedTimesteps / totalTimesteps) : 0;
 
