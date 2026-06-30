@@ -95,14 +95,32 @@ export function createSubsetDownloadController({
     }
 
     messageEl.textContent = message;
-    dialog.returnValue = 'continue';
+    dialog.returnValue = 'cancel';
     dialog.showModal();
 
     const choice = await new Promise((resolve) => {
-      dialog.addEventListener('close', () => resolve(dialog.returnValue || 'continue'), { once: true });
+      const onClose = () => {
+        cleanup();
+        resolve(dialog.returnValue || 'cancel');
+      };
+      const onCancel = (event) => {
+        event.preventDefault();
+        dialog.close('cancel');
+      };
+      const onClick = (event) => {
+        if (event.target === dialog) dialog.close('cancel');
+      };
+      const cleanup = () => {
+        dialog.removeEventListener('close', onClose);
+        dialog.removeEventListener('cancel', onCancel);
+        dialog.removeEventListener('click', onClick);
+      };
+      dialog.addEventListener('close', onClose);
+      dialog.addEventListener('cancel', onCancel);
+      dialog.addEventListener('click', onClick);
     });
 
-    return choice === 'full' ? 'full' : 'continue';
+    return choice === 'full' ? 'full' : (choice === 'continue' ? 'continue' : 'cancel');
   }
 
   function waitingStatusMessage(queuePosition, isLongWait = false) {
@@ -415,6 +433,10 @@ export function createSubsetDownloadController({
 
     if (timeMode !== 'full' && totalTimesteps > 0 && requestedFraction > FULL_TIME_SUGGESTION_THRESHOLD) {
       const choice = await promptLargeSubsetChoice(requestedFraction);
+      if (choice === 'cancel') {
+        logger.finishSubsetRun(run, 'cancelled', { reason: 'user-dismissed-large-subset-choice' });
+        throw new SubsetCancelled();
+      }
       if (choice === 'full') {
         timeStart = 0;
         timeEnd = totalTimesteps - 1;
