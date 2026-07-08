@@ -1,5 +1,15 @@
 import { WMS_VERSION, PALETTE_LABELS } from "../core/config.js";
 
+const PRECIP_VARIABLE_NAMES = new Set([
+  "pr",
+  "ppt",
+  "prec",
+  "precip",
+  "precipitation",
+  "rainf",
+]);
+const ANNUAL_FREQUENCY_HINT_RE = /\b(year|yearly|annual|ann|yr)\b/;
+
 export function createMapController({
   portal,
   state,
@@ -315,7 +325,7 @@ export function createMapController({
 
   function isPrecipVariable(varName) {
     const value = String(varName || "").trim().toLowerCase();
-    return ["pr", "ppt", "prec", "precip", "precipitation", "rainf"].includes(value);
+    return PRECIP_VARIABLE_NAMES.has(value);
   }
 
   function getLogScaleMinFloor() {
@@ -333,7 +343,7 @@ export function createMapController({
       .join(" ")
       .toLowerCase();
 
-    return /\b(year|yearly|annual|ann|yr)\b/.test(frequencyHints) || timeCount === 1
+    return ANNUAL_FREQUENCY_HINT_RE.test(frequencyHints) || timeCount === 1
       ? 200
       : 1;
   }
