@@ -1,5 +1,15 @@
 import { WMS_VERSION, PALETTE_LABELS } from "../core/config.js";
 
+const PRECIP_VARIABLE_NAMES = new Set([
+  "pr",
+  "ppt",
+  "prec",
+  "precip",
+  "precipitation",
+  "rainf",
+]);
+const ANNUAL_FREQUENCY_HINT_RE = /\b(year|yearly|annual|ann|yr)\b/;
+
 export function createMapController({
   portal,
   state,
@@ -313,6 +323,31 @@ export function createMapController({
     return pickBestCrsForLayer(layer) || wanted || "EPSG:3857";
   }
 
+  function isPrecipVariable(varName) {
+    const value = String(varName || "").trim().toLowerCase();
+    return PRECIP_VARIABLE_NAMES.has(value);
+  }
+
+  function getLogScaleMinFloor() {
+    const variableName =
+      state.currentDataset?.rendering?.variable || state.variable || "";
+    if (!isPrecipVariable(variableName)) return 1e-12;
+
+    const timeCount = Number(state.currentDataset?.timeMetadata?.count || 0);
+    const frequencyHints = [
+      state.currentDataset?.rendering?.frequencyLabel,
+      state.currentDataset?.name,
+      state.currentDataset?.urlPath,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return ANNUAL_FREQUENCY_HINT_RE.test(frequencyHints) || timeCount === 1
+      ? 200
+      : 1;
+  }
+
   function updateMap() {
     if (!state.currentDataset || !state.selectedLayer) return;
     if (wmsLayer) map.removeLayer(wmsLayer);
@@ -357,7 +392,7 @@ export function createMapController({
       params.PALETTE = palette;
       params.NUMCOLORBANDS = bands;
       const safeMin =
-        shouldLogScale && min != null ? Math.max(min, 1e-12) : min;
+        shouldLogScale && min != null ? Math.max(min, getLogScaleMinFloor()) : min;
       if (safeMin != null && max != null)
         params.COLORSCALERANGE = `${safeMin},${max}`;
       if (shouldLogScale) params.LOGSCALE = "true";
@@ -388,7 +423,7 @@ export function createMapController({
       setStatus("WMS tile load error", true);
     });
     const legendMinValue =
-      shouldLogScale && min != null ? Math.max(min, 1e-12) : min;
+      shouldLogScale && min != null ? Math.max(min, getLogScaleMinFloor()) : min;
     updateLegend(
       styleName,
       palette,

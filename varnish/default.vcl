@@ -7,7 +7,7 @@ vcl 4.1;
 
 // Find host from mgr node: "docker service inspect dev-pdp-next_thredds --format '{{json .Endpoint.VirtualIPs}}'"
 backend thredds {
-  .host = "10.12.172.17/16";
+  .host = "dev-pdp-next_thredds";
   .port = "8080";
   .connect_timeout = 5s;
   // ncWMS can be slow to start rendering
