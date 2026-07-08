@@ -5,7 +5,6 @@ vcl 4.1;
 //   varnishadm ban 'req.url ~ "request=GetCapabilities"'     # just capabilities
 //   varnishadm ban 'req.url ~ "request=GetMap"'              # just tiles
 
-// Find host from mgr node: "docker service inspect dev-pdp-next_thredds --format '{{json .Endpoint.VirtualIPs}}'"
 backend thredds {
   .host = "dev-pdp-next_thredds";
   .port = "8080";
