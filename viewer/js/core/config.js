@@ -1,7 +1,7 @@
 export const KNOWN_PORTALS = [
   // { id: 'gridded_daily', title: 'Daily Gridded Meteorological Datasets', mount: 'gridded_daily', defaultCrs: 'EPSG:4326' },
-  { id: 'prism', title: 'PRISM', mount: 'prism', defaultCrs: 'EPSG:3005' },
-  { id: 'canada_mosaic', title: 'Canada Mosaic 30arcsec', mount: 'canada_mosaic', defaultCrs: 'EPSG:3978' },
+  { id: 'prism', title: 'BC PRISM', mount: 'prism', defaultCrs: 'EPSG:3005' },
+  { id: 'canada_mosaic', title: 'Canada Mosaic', mount: 'canada_mosaic', defaultCrs: 'EPSG:3978' },
   // { id: 'vicgl', title: 'Gridded Hydrologic Model Output (VICGL)', mount: 'vicgl', defaultCrs: 'EPSG:3005' },
   // { id: 'bccaqv2_u5', title: 'CanDCS-U5 (BCCAQv2 CMIP5)', mount: 'bccaqv2_u5', defaultCrs: 'EPSG:4326' },
   // { id: 'bccaqv2_u6', title: 'CanDCS-U6 (BCCAQv2 CMIP6)', mount: 'bccaqv2_u6', defaultCrs: 'EPSG:4326' },
@@ -40,8 +40,8 @@ export const DEFAULT_VARIABLE_LABELS = {
   tas: 'Mean Temperature',
   tasmax: 'Daily Maximum Temperature',
   tasmin: 'Daily Minimum Temperature',
-  tmax: 'Mean Daily Maximum Temperature',
-  tmin: 'Mean Daily Minimum Temperature'
+  tmax: 'Maximum Temperature',
+  tmin: 'Minimum Temperature'
 };
 
 export const CRS_OPTIONS = [
