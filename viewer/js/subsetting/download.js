@@ -49,6 +49,8 @@ export function createSubsetDownloadController({
 
   let activeBackgroundStatus = null;
   let activeNcPollRunId = null;
+  let activeSubsetRunId = null;
+  let activeFetchController = null;
   const ncpartitionerPublicRoot = new URL(ncpartitionerBase(), window.location.origin);
 
   function setSubsetDownloadBusy(isBusy) {
@@ -58,6 +60,16 @@ export function createSubsetDownloadController({
 
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function replaceActiveFetchController() {
+    activeFetchController?.abort();
+    activeFetchController = new AbortController();
+    return activeFetchController;
+  }
+
+  function clearActiveFetchController(controller = activeFetchController) {
+    if (controller && activeFetchController === controller) activeFetchController = null;
   }
 
   function clearBackgroundSubsetStatus(message = '', isError = false) {
@@ -151,10 +163,13 @@ export function createSubsetDownloadController({
     return waitingStatusMessage(queuePositionFor(payload), isLongWait);
   }
 
-  function cancelPendingSubsetStatus() {
+  function cancelPendingSubsetStatus(message = '', isError = false) {
     activeNcPollRunId = null;
+    activeSubsetRunId = null;
+    activeFetchController?.abort();
+    activeFetchController = null;
     clearBackgroundSubsetStatus();
-    stopStatusSpinner();
+    stopStatusSpinner(message, isError);
   }
 
   function triggerBackgroundDownload(url) {
@@ -311,7 +326,7 @@ export function createSubsetDownloadController({
   }
 
   /** Submits the ncpartitioner job and returns the parsed job + status URL. */
-  async function submitNcpartitionerJob(targets) {
+  async function submitNcpartitionerJob(targets, signal) {
     const filepath = /\.nc4?$/i.test(state.currentDataset.urlPath)
       ? state.currentDataset.urlPath
       : `${state.currentDataset.urlPath}.nc`;
@@ -321,7 +336,7 @@ export function createSubsetDownloadController({
     const partitionRequestUrl = new URL(`partition/?${partitionParams.toString()}`, ncpartitionerPublicRoot).toString();
 
     startStatusSpinner('Submitting subset to ncpartitioner…');
-    const response = await fetch(partitionRequestUrl, { method: 'GET' });
+    const response = await fetch(partitionRequestUrl, { method: 'GET', signal });
     if (response.status !== 202) {
       throw new Error(`Unexpected ncpartitioner response: ${response.status}`);
     }
@@ -346,7 +361,7 @@ export function createSubsetDownloadController({
     const requestStartedAt = Date.now();
 
     while (activeNcPollRunId === run.id) {
-      const statusResponse = await fetch(statusUrl, { cache: 'no-store' });
+      const statusResponse = await fetch(statusUrl, { cache: 'no-store', signal: activeFetchController?.signal });
       if (activeNcPollRunId !== run.id) return;
 
       if (statusResponse.status === 404) {
@@ -363,6 +378,7 @@ export function createSubsetDownloadController({
         if (!downloadUrl) throw new Error('Subset completed without a download URL');
 
         activeNcPollRunId = null;
+        activeSubsetRunId = null;
         stopBackgroundStatus();
         stopStatusSpinner('Subset complete. Starting download…');
         triggerBackgroundDownload(downloadUrl);
@@ -422,83 +438,93 @@ export function createSubsetDownloadController({
 
   /** Builds the ncpartitioner request and drives it through to download. */
   async function runNcpartitionerSubset(run, { bbox, useWholeSpatialDomain, spatialMode, timeMode, rangeStart, rangeEnd, useCurrent }) {
+    const fetchController = replaceActiveFetchController();
     const tIndexStart = performance.now();
     startStatusSpinner('Converting bounds/time to ncpartitioner indexes…');
-    const indexInfo = await indexController.getNcpartitionerIndexInfo(state.currentDataset.urlPath);
-    const { latStart, latEnd, lonStart, lonEnd } = resolveNcpartitionerIndexes(bbox, useWholeSpatialDomain, indexInfo);
-    const tIndexEnd = performance.now();
-    let effectiveTimeMode = timeMode;
-    const actualTimeCount = Math.max(0, Number(indexInfo.timeCount || 0));
+    try {
+      const indexInfo = await indexController.getNcpartitionerIndexInfo(state.currentDataset.urlPath);
+      const { latStart, latEnd, lonStart, lonEnd } = resolveNcpartitionerIndexes(bbox, useWholeSpatialDomain, indexInfo);
+      const tIndexEnd = performance.now();
+      let effectiveTimeMode = timeMode;
+      const actualTimeCount = Math.max(0, Number(indexInfo.timeCount || 0));
 
-    let timeStartIso = '';
-    let timeEndIso = '';
-    if (useCurrent) {
-      const selectedTime = getSelectedTime();
-      timeStartIso = selectedTime;
-      timeEndIso = selectedTime;
-    } else if (rangeStart || rangeEnd) {
-      timeStartIso = rangeStart || state.times?.[0] || '';
-      timeEndIso = rangeEnd || state.times?.[state.times.length - 1] || timeStartIso;
-    } else {
-      timeStartIso = state.times?.[0] || '';
-      timeEndIso = state.times?.[state.times.length - 1] || timeStartIso;
-    }
-
-    let [timeStart, timeEnd] = indexController.findTimeIndexRange(state.times || [], timeStartIso, timeEndIso);
-    if (actualTimeCount > 0) {
-      timeStart = Math.max(0, Math.min(timeStart, actualTimeCount - 1));
-      timeEnd = Math.max(timeStart, Math.min(timeEnd, actualTimeCount - 1));
-    }
-
-    const totalTimesteps = actualTimeCount || (Array.isArray(state.times) ? state.times.length : 0);
-    const selectedTimesteps = (timeEnd - timeStart) + 1;
-    const requestedFraction = totalTimesteps > 0 ? (selectedTimesteps / totalTimesteps) : 0;
-
-    if (timeMode !== 'full' && totalTimesteps > 0 && requestedFraction > FULL_TIME_SUGGESTION_THRESHOLD) {
-      const choice = await promptLargeSubsetChoice(requestedFraction);
-      if (choice === 'cancel') {
-        logger.finishSubsetRun(run, 'cancelled', { reason: 'user-dismissed-large-subset-choice' });
-        throw new SubsetCancelled();
+      let timeStartIso = '';
+      let timeEndIso = '';
+      if (useCurrent) {
+        const selectedTime = getSelectedTime();
+        timeStartIso = selectedTime;
+        timeEndIso = selectedTime;
+      } else if (rangeStart || rangeEnd) {
+        timeStartIso = rangeStart || state.times?.[0] || '';
+        timeEndIso = rangeEnd || state.times?.[state.times.length - 1] || timeStartIso;
+      } else {
+        timeStartIso = state.times?.[0] || '';
+        timeEndIso = state.times?.[state.times.length - 1] || timeStartIso;
       }
-      if (choice === 'full') {
-        timeStart = 0;
-        timeEnd = totalTimesteps - 1;
-        effectiveTimeMode = 'full';
-        if (useWholeSpatialDomain) {
-          await runFullFileDownload(run, spatialMode);
-          return;
+
+      let [timeStart, timeEnd] = indexController.findTimeIndexRange(state.times || [], timeStartIso, timeEndIso);
+      if (actualTimeCount > 0) {
+        timeStart = Math.max(0, Math.min(timeStart, actualTimeCount - 1));
+        timeEnd = Math.max(timeStart, Math.min(timeEnd, actualTimeCount - 1));
+      }
+
+      const totalTimesteps = actualTimeCount || (Array.isArray(state.times) ? state.times.length : 0);
+      const selectedTimesteps = (timeEnd - timeStart) + 1;
+      const requestedFraction = totalTimesteps > 0 ? (selectedTimesteps / totalTimesteps) : 0;
+
+      if (timeMode !== 'full' && totalTimesteps > 0 && requestedFraction > FULL_TIME_SUGGESTION_THRESHOLD) {
+        const choice = await promptLargeSubsetChoice(requestedFraction);
+        if (choice === 'cancel') {
+          logger.finishSubsetRun(run, 'cancelled', { reason: 'user-dismissed-large-subset-choice' });
+          throw new SubsetCancelled('Subset request cancelled.');
+        }
+        if (choice === 'full') {
+          timeStart = 0;
+          timeEnd = totalTimesteps - 1;
+          effectiveTimeMode = 'full';
+          if (useWholeSpatialDomain) {
+            await runFullFileDownload(run, spatialMode);
+            return;
+          }
         }
       }
+
+      const targets = [
+        `time[${timeStart}:${timeEnd}]`,
+        `lat[${latStart}:${latEnd}]`,
+        `lon[${lonStart}:${lonEnd}]`,
+        `${state.variable}[${timeStart}:${timeEnd}][${latStart}:${latEnd}][${lonStart}:${lonEnd}]`
+      ].join(',');
+
+      const tPartitionStart = performance.now();
+      const { job, statusUrl } = await submitNcpartitionerJob(targets, fetchController.signal);
+
+      await pollNcpartitionerJob({
+        run,
+        job,
+        statusUrl,
+        spatialMode,
+        timeMode: effectiveTimeMode,
+        indexMs: Math.round(tIndexEnd - tIndexStart),
+        tPartitionStart
+      });
+    } finally {
+      clearActiveFetchController(fetchController);
     }
-
-    const targets = [
-      `time[${timeStart}:${timeEnd}]`,
-      `lat[${latStart}:${latEnd}]`,
-      `lon[${lonStart}:${lonEnd}]`,
-      `${state.variable}[${timeStart}:${timeEnd}][${latStart}:${latEnd}][${lonStart}:${lonEnd}]`
-    ].join(',');
-
-    const tPartitionStart = performance.now();
-    const { job, statusUrl } = await submitNcpartitionerJob(targets);
-
-    await pollNcpartitionerJob({
-      run,
-      job,
-      statusUrl,
-      spatialMode,
-      timeMode: effectiveTimeMode,
-      indexMs: Math.round(tIndexEnd - tIndexStart),
-      tPartitionStart
-    });
   }
 
   async function downloadSubset() {
+    if (activeSubsetRunId) {
+      setStatus('A subset request is already running.');
+      return;
+    }
     if (subsetDownloadBtn.disabled) return;
     if (!state.currentDataset) return alert('Please select a dataset first');
     if (!state.variable) return alert('Could not infer variable for this file.');
 
     setSubsetDownloadBusy(true);
     const run = logger.startSubsetRun('subset-download', { portal: portal.id, dataset: state.currentDataset?.urlPath || null });
+    activeSubsetRunId = run.id;
     activeNcPollRunId = run.id;
 
     const spatialMode = (subsetSpatialMode?.value || 'viewport').toLowerCase();
@@ -524,11 +550,12 @@ export function createSubsetDownloadController({
         useCurrent: timeMode === 'current'
       });
     } catch (error) {
-      if (error instanceof SubsetCancelled) {
-        setSubsetDownloadBusy(false);
+      if (error instanceof SubsetCancelled || error?.name === 'AbortError') {
+        cancelPendingSubsetStatus(error instanceof SubsetCancelled ? error.message : '');
         return;
       }
       activeNcPollRunId = null;
+      activeSubsetRunId = null;
       console.error(error);
       cancelPendingSubsetStatus();
       stopStatusSpinner(`Subset failed: ${error?.message || error}`, true);
@@ -540,6 +567,7 @@ export function createSubsetDownloadController({
       });
       alert(`Subset failed: ${error?.message || error}`);
     } finally {
+      if (activeSubsetRunId === run.id && !activeBackgroundStatus) activeSubsetRunId = null;
       if (!activeBackgroundStatus) setSubsetDownloadBusy(false);
     }
   }
