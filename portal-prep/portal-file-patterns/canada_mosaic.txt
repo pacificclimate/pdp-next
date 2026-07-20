@@ -1,0 +1,6 @@
+# Canada Mosaic 30arcsec portal membership
+/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/*.nc
+!/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/*seasann*.nc
+
+
+

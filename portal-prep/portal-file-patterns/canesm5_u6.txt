@@ -1,0 +1,5 @@
+# CanESM5 (Univariate) — BCCAQv2/CanESM5
+# Top-level files only (exclude Derived trees that duplicate basenames)
+/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/dtr_monmean_r1_ssp585.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/dtr_r1_ssp585.nc

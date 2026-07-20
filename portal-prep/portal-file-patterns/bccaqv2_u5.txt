@@ -1,0 +1,3 @@
+/storage/data/climate/downscale/BCCAQ2/bccaqv2_with_metadata/*_19500101-21001231.nc
+!/storage/data/climate/downscale/BCCAQ2/bccaqv2_with_metadata/*subset*_19500101-21001231.nc
+

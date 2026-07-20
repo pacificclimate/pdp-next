@@ -1,0 +1,5 @@
+# CanESM5 (Multivariate) — MBCn/CanESM5_10
+# Top-level files only (exclude Derived trees that duplicate basenames)
+/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*txtn*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*370*.nc

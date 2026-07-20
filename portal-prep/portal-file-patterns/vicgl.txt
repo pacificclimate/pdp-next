@@ -1,0 +1,4 @@
+# Gridded Hydrologic Model Output (VICGL)
+/storage/data/projects/hydrology/dataportal/CMIP5/VICGL/**/*.nc
+!/storage/data/projects/hydrology/dataportal/CMIP5/VICGL/*TRANSP_VEG_pfc.nc
+

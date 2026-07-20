@@ -1,0 +1,16 @@
+# MBCn downscaled climate scenarios (CMIP6_MBCn)
+# Top-level daily files in model folders.
+
+/storage/data/climate/downscale/MBCn/CMIP6_MBCn/*/*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*_r2i1p2f1_*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*_r3i1p2f1_*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*_r4i1p2f1_*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*_r5i1p2f1_*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*_r6i1p2f1_*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*_r7i1p2f1_*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*_r8i1p2f1_*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*_r9i1p2f1_*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*_r10i1p2f1_*.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/TESTING_REGION/template_PCIC-Blend_PNW.nc
+!/storage/data/climate/downscale/MBCn/CMIP6_MBCn/CanESM5_10/*txtn*.nc
+
