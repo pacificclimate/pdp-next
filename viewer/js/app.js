@@ -1,6 +1,5 @@
 import {
   TIME_EXPAND_LIMIT,
-  NCSS_WARN_TIMESTEPS,
   DEFAULT_VARIABLE_LABELS,
   CRS_OPTIONS,
   DEFAULT_CANADA_BBOX_4326,
@@ -326,8 +325,7 @@ const subsettingController = createSubsettingController({
     subsetDrawSource,
     subsetDrawLayer,
     getCurrentCrs,
-  },
-  NCSS_WARN_TIMESTEPS,
+  }
 });
 
 ({

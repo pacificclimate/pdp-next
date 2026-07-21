@@ -5,7 +5,6 @@ export function createSubsetDownloadController({
   status,
   services,
   time,
-  NCSS_WARN_TIMESTEPS,
   logger,
   drawController,
   indexController
@@ -247,13 +246,6 @@ export function createSubsetDownloadController({
     if (useFull) {
       const rangeStart = state.selectedLayer?.time?.start || state.times?.[0] || '';
       const rangeEnd = state.selectedLayer?.time?.end || state.times?.[state.times.length - 1] || '';
-      if (state.times.length > NCSS_WARN_TIMESTEPS) {
-        const proceed = window.confirm(`Full-range subset will request ${state.times.length} timesteps and may time out. Continue?`);
-        if (!proceed) {
-          logger.finishSubsetRun(run, 'cancelled', { reason: 'user-cancelled-full-time-warning' });
-          throw new SubsetCancelled();
-        }
-      }
       return { timeMode, rangeStart, rangeEnd };
     }
 
