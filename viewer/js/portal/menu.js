@@ -183,7 +183,7 @@ export function createMenuController({
     setStatus('Loading portal metadata…');
     const metaPayload = await loadPortalMeta(portal.id);
     renderMenuFromPortalMeta(metaPayload);
-    setStatus('Ready - Select a dataset');
+    setStatus('Ready')
   }
 
   function populatePortalSelect() {

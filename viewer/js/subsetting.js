@@ -10,8 +10,7 @@ export function createSubsettingController({
   status,
   services,
   time,
-  mapDeps,
-  NCSS_WARN_TIMESTEPS
+  mapDeps
 }) {
   const logger = createSubsetLogger();
   const drawController = createSubsetDrawController({
@@ -30,7 +29,6 @@ export function createSubsettingController({
     status,
     services,
     time,
-    NCSS_WARN_TIMESTEPS,
     logger,
     drawController,
     indexController
