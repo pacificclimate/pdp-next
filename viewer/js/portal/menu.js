@@ -1,4 +1,4 @@
-import { KNOWN_PORTALS, PORTAL_PARAM_KEY } from '../core/config.js';
+import { KNOWN_PORTALS } from '../core/config.js';
 
 function setActiveMenuItem(el) {
   document.querySelectorAll('.variable-item').forEach((i) => i.classList.remove('active'));
@@ -17,6 +17,8 @@ function setActiveMenuItem(el) {
 
 export function createMenuController({
   portal,
+  initialDatasetUrlPath,
+  initialVariable,
   ui,
   services,
   loadDatasetFromUrlPath
@@ -66,11 +68,38 @@ export function createMenuController({
     return index;
   }
 
-  function renderMenuFromPortalMeta(metaPayload) {
+  async function renderMenuFromPortalMeta(metaPayload) {
     datasetMenu.innerHTML = '';
     const menuTree = metaPayload?.menu;
     if (!menuTree || typeof menuTree !== 'object') throw new Error('portal-meta is missing menu tree');
     const basenameIndex = buildBasenameIndex(metaPayload);
+    const selectableItems = [];
+
+    async function selectDataset(element, entry, basename, selectionLabel) {
+      setActiveMenuItem(element);
+      const isInitialUrlDataset =
+        entry.thredds.urlPath === initialDatasetUrlPath;
+      await loadDatasetFromUrlPath({
+        name: entry.basename || basename,
+        selectionLabel,
+        urlPath: entry.thredds.urlPath,
+        variable: isInitialUrlDataset && initialVariable
+          ? initialVariable
+          : entry?.metadata?.primary?.name || null,
+        metadata: entry?.metadata || null,
+        rendering: entry?.rendering || null,
+        timeMetadata: entry?.metadata?.time || null
+      });
+    }
+
+    function registerSelectable(element, entry, basename, selectionPath) {
+      const selectionLabel = selectionPath.slice(0, -1).join(' › ')
+        || selectionPath.join(' › ');
+      selectableItems.push({ element, entry, basename, selectionLabel });
+      element.addEventListener('click', () => {
+        selectDataset(element, entry, basename, selectionLabel);
+      });
+    }
     let defaultSelection = null;
     const topLabels = Object.keys(menuTree).sort((a, b) => a.localeCompare(b));
     if (topLabels.length) {
@@ -112,17 +141,7 @@ export function createMenuController({
           fileLi.className = 'variable-item';
           fileLi.textContent = nodeLabel;
           fileLi.title = entry.thredds.urlPath;
-          fileLi.addEventListener('click', () => {
-            setActiveMenuItem(fileLi);
-            loadDatasetFromUrlPath({
-              name: entry.basename || basename,
-              urlPath: entry.thredds.urlPath,
-              variable: entry?.metadata?.primary?.name || null,
-              metadata: entry?.metadata || null,
-              rendering: entry?.rendering || null,
-              timeMetadata: entry?.metadata?.time || null
-            });
-          });
+          registerSelectable(fileLi, entry, basename, pathNow);
           containerUl.appendChild(fileLi);
           return;
         }
@@ -145,17 +164,7 @@ export function createMenuController({
           fileLi.className = 'variable-item';
           fileLi.textContent = entry.basename || basename;
           fileLi.title = entry.thredds.urlPath;
-          fileLi.addEventListener('click', () => {
-            setActiveMenuItem(fileLi);
-            loadDatasetFromUrlPath({
-              name: entry.basename || basename,
-              urlPath: entry.thredds.urlPath,
-              variable: entry?.metadata?.primary?.name || null,
-              metadata: entry?.metadata || null,
-              rendering: entry?.rendering || null,
-              timeMetadata: entry?.metadata?.time || null
-            });
-          });
+          registerSelectable(fileLi, entry, basename, pathNow);
           children.appendChild(fileLi);
         });
 
@@ -171,10 +180,16 @@ export function createMenuController({
     }
 
     topLabels.forEach((label) => renderNode(label, menuTree[label], datasetMenu));
-    const firstSelectable = datasetMenu.querySelector('.variable-item');
-    if (firstSelectable) {
-      setActiveMenuItem(firstSelectable);
-      firstSelectable.dispatchEvent(new Event('click'));
+    const initialSelection = selectableItems.find(
+      ({ entry }) => entry.thredds.urlPath === initialDatasetUrlPath,
+    ) || selectableItems[0];
+    if (initialSelection) {
+      await selectDataset(
+        initialSelection.element,
+        initialSelection.entry,
+        initialSelection.basename,
+        initialSelection.selectionLabel,
+      );
     }
   }
 
@@ -182,7 +197,7 @@ export function createMenuController({
     datasetMenu.innerHTML = '';
     setStatus('Loading portal metadata…');
     const metaPayload = await loadPortalMeta(portal.id);
-    renderMenuFromPortalMeta(metaPayload);
+    await renderMenuFromPortalMeta(metaPayload);
     setStatus('Ready')
   }
 
@@ -197,11 +212,6 @@ export function createMenuController({
       portalSelect.appendChild(opt);
     });
     portalSelect.value = portal.id;
-    portalSelect.addEventListener('change', () => {
-      const url = new URL(window.location.href);
-      url.searchParams.set(PORTAL_PARAM_KEY, portalSelect.value);
-      window.location.href = url.toString();
-    }, { once: true });
   }
 
   return {

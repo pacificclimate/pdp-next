@@ -47,7 +47,12 @@ export function createDatasetController({
     populatePaletteSelect,
     pickDefaultPaletteForVar,
   } = layer;
-  const { refreshInfoPanel, updateMap } = render;
+  const {
+    refreshInfoPanel,
+    updateMap,
+    applyInitialViewerState,
+    viewerStateChanged,
+  } = render;
 
   function threddsRoot() {
     const root = String(portal.threddsRoot || "/thredds/");
@@ -106,7 +111,7 @@ export function createDatasetController({
     state.variable = state.selectedLayer?.name || state.variable;
   }
 
-  function syncCrsForLayer() {
+  function syncCrsForLayer({ fitToLayer = false } = {}) {
     if (olRef.proj.get(getCurrentCrs())) {
       crsSelect.value = getCurrentCrs();
     } else {
@@ -116,7 +121,11 @@ export function createDatasetController({
         crsSelect.value = best;
       }
     }
-    fitMapToBbox4326(state.selectedLayer?.bbox4326 || DEFAULT_CANADA_BBOX_4326);
+    if (fitToLayer) {
+      fitMapToBbox4326(
+        state.selectedLayer?.bbox4326 || DEFAULT_CANADA_BBOX_4326,
+      );
+    }
   }
 
   function applyTimesToUI() {
@@ -208,6 +217,7 @@ export function createDatasetController({
 
   async function loadDatasetFromUrlPath({
     name,
+    selectionLabel = null,
     urlPath,
     variable,
     metadata = null,
@@ -215,12 +225,14 @@ export function createDatasetController({
     timeMetadata = null,
   }) {
     try {
+      const isInitialDataset = !state.currentDataset;
       cancelPendingSubsetStatus?.();
       stopStatusSpinner();
       setStatus("Loading dataset…");
       legendPanel?.classList.add("hidden");
       state.currentDataset = {
         name,
+        selectionLabel,
         urlPath,
         wmsBase: wmsBaseForUrlPath(urlPath),
         metadata,
@@ -235,7 +247,7 @@ export function createDatasetController({
       state.metadataRange = null;
 
       await resolveLayersFromCapabilities();
-      syncCrsForLayer();
+      syncCrsForLayer({ fitToLayer: isInitialDataset });
       initTimesFromLayer(timeMetadata);
 
       let details = null;
@@ -254,8 +266,10 @@ export function createDatasetController({
       overrideSingleTimeFromMetadata(timeMetadata);
 
       applyPaletteAndScale(details, rendering);
+      applyInitialViewerState?.();
       refreshInfoPanel();
       updateMap();
+      viewerStateChanged?.();
       setStatus("Ready");
     } catch (err) {
       console.error(err);

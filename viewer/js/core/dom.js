@@ -6,6 +6,7 @@ export const timeValue = document.getElementById('timeValue');
 export const statusText = document.getElementById('statusText');
 export const datasetName = document.getElementById('datasetName');
 export const variableInfo = document.getElementById('variableInfo');
+export const selectionVariableIcon = document.getElementById('selectionVariableIcon');
 export const timeInfo = document.getElementById('timeInfo');
 export const metadataBtn = document.getElementById('metadataBtn');
 export const paletteSelect = document.getElementById('paletteSelect');

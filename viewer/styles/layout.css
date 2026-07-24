@@ -1,35 +1,132 @@
 .header-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
 }
 
-.logo-section,
-.header-links {
+.logo-section {
   display: flex;
   align-items: center;
-}
-
-.logo-section {
   gap: 20px;
-}
-
-.header-links {
-  gap: 15px;
-  font-size: 14px;
 }
 
 .logo {
   height: 50px;
 }
 
+.header-context {
+  min-width: 0;
+  justify-self: end;
+}
+
 .page-title {
+  grid-column: 2;
   margin: 0;
   color: var(--pcic-light-blue);
   font-size: 24px;
   font-weight: 300;
-  text-align: right;
+  text-align: center;
+}
+
+.selection-summary {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(260px, 420px) minmax(150px, auto) auto auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.selection-summary-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.selection-summary-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.selection-summary-value {
+  max-width: 220px;
+  overflow: hidden;
+  color: var(--text-dark);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selection-summary-primary .selection-summary-value {
+  max-width: 100%;
+}
+
+.selection-variable-value {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.selection-variable-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: var(--pcic-blue);
+}
+
+.selection-variable-icon[data-kind="precipitation"] {
+  color: #1976a8;
+}
+
+.selection-variable-icon[data-kind="temperature"] {
+  color: #c94a38;
+}
+
+.selection-variable-icon[data-kind="snow"] {
+  color: #5b84b1;
+}
+
+.selection-variable-icon[data-kind="flow"] {
+  color: #39796b;
+}
+
+.selection-variable-icon[data-kind="evaporation"] {
+  color: #4f7f47;
+}
+
+.selection-variable-icon[data-kind="glacier"] {
+  color: #477f9d;
+}
+
+.selection-variable-icon[data-kind="soil"] {
+  color: #8a6541;
+}
+
+.selection-variable-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.selection-metadata-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 5px 9px;
+  font-size: 11px;
 }
 
 .content-wrapper {

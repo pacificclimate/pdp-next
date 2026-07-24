@@ -17,7 +17,26 @@
           <a href="https://pacificclimate.org" aria-label="PCIC Home"><img src="https://services.pacificclimate.org/portal/images/banner.png" alt="PCIC Logo" class="logo"></a>
         </div>
         <h1 id="viewerTitle" class="page-title">PCIC Data Portal</h1>
-        <div class="header-links"></div>
+        <div class="header-context">
+          <section class="selection-summary" aria-label="Current selection">
+            <div class="selection-summary-item selection-summary-primary">
+              <span class="selection-summary-label">Selection</span>
+              <span class="selection-summary-value" id="datasetName">—</span>
+            </div>
+            <div class="selection-summary-item">
+              <span class="selection-summary-label">Variable</span>
+              <span class="selection-variable-value">
+                <span class="selection-variable-icon" id="selectionVariableIcon" data-kind="generic" aria-hidden="true"></span>
+                <span class="selection-summary-value" id="variableInfo">—</span>
+              </span>
+            </div>
+            <div class="selection-summary-item">
+              <span class="selection-summary-label">Time</span>
+              <span class="selection-summary-value" id="timeInfo">—</span>
+            </div>
+            <button class="btn btn-secondary selection-metadata-btn" id="metadataBtn" type="button">Metadata</button>
+          </section>
+        </div>
       </div>
     </header>
 
@@ -171,25 +190,6 @@
             <button class="btn btn-secondary" id="subsetClearDraw" type="button">Clear drawing</button>
 
             <button class="btn btn-primary" id="subsetDownloadBtn" type="button">Download subset</button>
-            <div class="download-info">
-            <div class="info-row">
-              <span class="info-label">Dataset</span>
-              <span class="info-value" id="datasetName">—</span>
-            </div>
-
-            <div class="info-row">
-              <span class="info-label">Variable</span>
-              <span class="info-value" id="variableInfo">—</span>
-            </div>
-
-            <div class="info-row">
-              <span class="info-label">Time</span>
-              <span class="info-value" id="timeInfo">—</span>
-            </div>
-
-            <div class="download-actions">
-              <button class="btn btn-secondary" id="metadataBtn" type="button">Metadata</button>
-            </div>
           </div>
         </div>
       </div>
