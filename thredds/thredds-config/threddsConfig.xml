@@ -13,6 +13,12 @@
   <WCS>
     <allow>true</allow>
   </WCS>
+
+  <NCISO>
+    <ncmlAllow>true</ncmlAllow>
+    <uddcAllow>false</uddcAllow>
+    <isoAllow>false</isoAllow>
+  </NCISO>
   
   <NetcdfSubsetService>
     <allow>true</allow>

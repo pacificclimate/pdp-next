@@ -1,4 +1,4 @@
-import { WMS_VERSION, buildPortalUrl } from './core/config.js';
+import { buildPortalUrl } from './core/config.js';
 import {
   timeModeBtns,
   timeSlider,
@@ -135,7 +135,7 @@ export function wireEvents({
 
   metadataBtn.addEventListener('click', () => {
     if (!state.currentDataset) return alert('Please select a dataset first');
-    window.open(`${state.currentDataset.wmsBase}?service=WMS&request=GetCapabilities&version=${encodeURIComponent(WMS_VERSION)}`, '_blank');
+    window.open(state.currentDataset.ncmlUrl, '_blank', 'noopener');
   });
 
   crsSelect.addEventListener('change', () => {

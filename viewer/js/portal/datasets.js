@@ -71,6 +71,10 @@ export function createDatasetController({
     return `${threddsRoot()}dodsC/${urlPath}`;
   }
 
+  function ncmlUrlForUrlPath(urlPath) {
+    return `${threddsRoot()}ncml/${urlPath}`;
+  }
+
   function ncpartitionerBase() {
     return "/pdp-next/ncpartitioner/";
   }
@@ -235,6 +239,7 @@ export function createDatasetController({
         selectionLabel,
         urlPath,
         wmsBase: wmsBaseForUrlPath(urlPath),
+        ncmlUrl: ncmlUrlForUrlPath(urlPath),
         metadata,
         rendering,
         timeMetadata,
