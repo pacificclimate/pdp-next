@@ -115,11 +115,24 @@ def normalize_run_label(raw: str, preserve_forcing: bool = False) -> str:
 
 def compose_run_from_attrs(global_attrs: Dict[str, Any], prefixes: Sequence[str]) -> str:
     for prefix in prefixes:
-        realization = str(global_attrs.get(f"{prefix}realization_index") or "").strip()
-        initialization = str(
-            global_attrs.get(f"{prefix}initialization_index") or ""
-        ).strip()
-        physics = str(global_attrs.get(f"{prefix}physics_index") or "").strip()
+        realization = first_non_empty(
+            [
+                global_attrs.get(f"{prefix}realization_index"),
+                global_attrs.get(f"{prefix}realization"),
+            ]
+        )
+        initialization = first_non_empty(
+            [
+                global_attrs.get(f"{prefix}initialization_index"),
+                global_attrs.get(f"{prefix}initialization_method"),
+            ]
+        )
+        physics = first_non_empty(
+            [
+                global_attrs.get(f"{prefix}physics_index"),
+                global_attrs.get(f"{prefix}physics_version"),
+            ]
+        )
         forcing = str(global_attrs.get(f"{prefix}forcing_index") or "").strip()
         if realization and initialization and physics:
             run = f"r{realization}i{initialization}p{physics}"
@@ -240,4 +253,3 @@ def read_netcdf_metadata(path: Path) -> Dict[str, Any]:
                     pass
 
     return ensure_derived_fields(metadata)
-

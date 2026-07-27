@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
 from .io_utils import file_fingerprint, load_json, utc_now_iso
-from .metadata import ensure_derived_fields, read_netcdf_metadata
+from .metadata import derive_common_fields, read_netcdf_metadata
 from .minmax import select_minmax_record
 from .portals import build_menu_tree, derive_menu_fields, get_portal_config
 
@@ -94,7 +94,7 @@ def build_portal_payload(
 
             cached_metadata = entry.get("metadata") if isinstance(entry.get("metadata"), dict) else {}
             if cached_metadata:
-                cached_metadata = ensure_derived_fields(cached_metadata)
+                cached_metadata["derived"] = derive_common_fields(cached_metadata)
                 entry["metadata"] = cached_metadata
                 recomputed = derive_menu_fields(portal_id, cached_metadata)
                 if recomputed and recomputed != entry.get("menuFields"):
@@ -149,4 +149,3 @@ def build_portal_payload(
     }
     stats = {"updated": updated, "kept": kept, "removed": removed}
     return new_payload, stats, len(files)
-
