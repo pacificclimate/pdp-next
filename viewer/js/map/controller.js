@@ -409,11 +409,11 @@ export function createMapController({
   }
 
   function updateInfoPanel(datasetName, variableInfo, timeInfo, variableIconElement) {
-    const datasetParts = [portal.title, state.currentDataset?.selectionLabel]
-      .filter(Boolean);
-    datasetName.textContent = datasetParts.join(" · ") || "—";
+    const selectionLabel = state.currentDataset?.selectionLabel;
+    datasetName.textContent = selectionLabel || state.currentDataset?.name || "—";
     datasetName.title = [
-      ...datasetParts,
+      portal.title,
+      selectionLabel,
       state.currentDataset?.urlPath,
     ].filter(Boolean).join("\n");
     const displayVariable = state.variable
