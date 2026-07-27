@@ -90,6 +90,12 @@ export function createSubsetDownloadController({
     throw new SubsetCancelled(message, true);
   }
 
+  function cancelSubsetWithError(run, reason, message) {
+    alert(message);
+    logger.finishSubsetRun(run, 'cancelled', { reason });
+    throw new SubsetCancelled(message, true);
+  }
+
   function setSubsetDownloadBusy(isBusy) {
     subsetDownloadBtn.disabled = isBusy;
     subsetDownloadBtn.textContent = isBusy ? `${SUBSET_DOWNLOAD_LABEL}...` : SUBSET_DOWNLOAD_LABEL;
@@ -227,6 +233,32 @@ export function createSubsetDownloadController({
       && outer.north >= (inner.north - tolerance);
   }
 
+  function bboxIntersection(first, second) {
+    if (!first || !second) return null;
+    const intersection = {
+      west: Math.max(first.west, second.west),
+      south: Math.max(first.south, second.south),
+      east: Math.min(first.east, second.east),
+      north: Math.min(first.north, second.north)
+    };
+    if (![intersection.west, intersection.south, intersection.east, intersection.north].every(Number.isFinite)) return null;
+    return intersection.west <= intersection.east && intersection.south <= intersection.north
+      ? intersection
+      : null;
+  }
+
+  function intersectSpatialSelection(bbox, datasetBbox, run) {
+    const intersection = bboxIntersection(bbox, datasetBbox);
+    if (!intersection) {
+      cancelSubsetWithError(
+        run,
+        'bbox-outside-dataset',
+        'The selected area does not overlap this dataset. No download was started.'
+      );
+    }
+    return intersection;
+  }
+
   /**
    * Resolves the spatial extent for the subset based on the UI's spatial mode.
    * Returns { bbox, useWholeSpatialDomain }.
@@ -234,7 +266,8 @@ export function createSubsetDownloadController({
    * already been alerted) or if no extent could be determined.
    */
   function resolveSpatialExtent(spatialMode, run) {
-    const datasetBbox = state.selectedLayer?.bbox4326 || { west: -180, south: -90, east: 180, north: 90 };
+    const advertisedBbox = state.selectedLayer?.bbox4326 || null;
+    const datasetBbox = advertisedBbox || { west: -180, south: -90, east: 180, north: 90 };
 
     if (spatialMode === 'whole') {
       return { bbox: datasetBbox, useWholeSpatialDomain: true };
@@ -247,7 +280,10 @@ export function createSubsetDownloadController({
         logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-drawn-bbox' });
         throw new SubsetCancelled();
       }
-      return { bbox, useWholeSpatialDomain: false };
+      return {
+        bbox: advertisedBbox ? intersectSpatialSelection(bbox, advertisedBbox, run) : bbox,
+        useWholeSpatialDomain: false
+      };
     }
 
     const bbox = drawController.getCurrentViewBbox4326();
@@ -257,7 +293,12 @@ export function createSubsetDownloadController({
       throw new SubsetCancelled();
     }
     const useWholeSpatialDomain = bboxContains(bbox, datasetBbox);
-    return { bbox: useWholeSpatialDomain ? datasetBbox : bbox, useWholeSpatialDomain };
+    return {
+      bbox: useWholeSpatialDomain
+        ? datasetBbox
+        : (advertisedBbox ? intersectSpatialSelection(bbox, advertisedBbox, run) : bbox),
+      useWholeSpatialDomain
+    };
   }
 
   /**
@@ -289,11 +330,11 @@ export function createSubsetDownloadController({
 
     const startIso = parseSubsetDateValue(subsetTimeStart.value, 'start');
     const endIso = parseSubsetDateValue(subsetTimeEnd.value, 'end');
-    if (startIso === null || endIso === null) {
-      const invalidInputs = [
-        ...(startIso === null ? [subsetTimeStart] : []),
-        ...(endIso === null ? [subsetTimeEnd] : [])
-      ];
+    const invalidInputs = [
+      ...(startIso === null ? [subsetTimeStart] : []),
+      ...(endIso === null ? [subsetTimeEnd] : [])
+    ];
+    if (invalidInputs.length) {
       cancelInvalidTimeRange(
         run,
         'invalid-date-input',
@@ -301,8 +342,8 @@ export function createSubsetDownloadController({
         invalidInputs
       );
     }
-    let rangeStart = startIso || '';
-    let rangeEnd = endIso || '';
+    const rangeStart = startIso || '';
+    const rangeEnd = endIso || '';
     if (rangeStart && rangeEnd && Date.parse(rangeStart) > Date.parse(rangeEnd)) {
       cancelInvalidTimeRange(
         run,
@@ -326,33 +367,26 @@ export function createSubsetDownloadController({
       && Number.isFinite(requestedEndMs)
     ) {
       const availableLabel = `${dateInputValue(fullRangeStart)} to ${dateInputValue(fullRangeEnd)}`;
-      if (requestedEndMs < availableStartMs || requestedStartMs > availableEndMs) {
+      const availableStartDate = dateInputValue(fullRangeStart);
+      const availableEndDate = dateInputValue(fullRangeEnd);
+      const requestedStartDate = dateInputValue(rangeStart || fullRangeStart);
+      const requestedEndDate = dateInputValue(rangeEnd || fullRangeEnd);
+
+      const startOutOfRange = requestedStartDate < availableStartDate || requestedStartDate > availableEndDate;
+      const endOutOfRange = rangeEnd
+        ? (requestedEndDate < availableStartDate || requestedEndDate > availableEndDate)
+        : false;
+      if (startOutOfRange || endOutOfRange) {
         const outOfRangeInputs = [
-          ...(requestedStartMs < availableStartMs || requestedStartMs > availableEndMs ? [subsetTimeStart] : []),
-          ...(requestedEndMs < availableStartMs || requestedEndMs > availableEndMs ? [subsetTimeEnd] : [])
+          ...(startOutOfRange ? [subsetTimeStart] : []),
+          ...(endOutOfRange ? [subsetTimeEnd] : [])
         ];
         cancelInvalidTimeRange(
           run,
           'date-range-outside-dataset',
-          `The requested dates do not overlap this dataset's available range (${availableLabel}). No download was started.`,
+          `Start and end dates must be within this dataset's available range (${availableLabel}). No download was started.`,
           outOfRangeInputs
         );
-      }
-
-      const adjustedInputs = [];
-      if (rangeStart && requestedStartMs < availableStartMs) {
-        rangeStart = fullRangeStart;
-        subsetTimeStart.value = dateInputValue(fullRangeStart);
-        adjustedInputs.push(subsetTimeStart);
-      }
-      if (rangeEnd && requestedEndMs > availableEndMs) {
-        rangeEnd = fullRangeEnd;
-        subsetTimeEnd.value = dateInputValue(fullRangeEnd);
-        adjustedInputs.push(subsetTimeEnd);
-      }
-      if (adjustedInputs.length) {
-        flagTimeInputs(adjustedInputs, 'is-adjusted');
-        setStatus(`Subset dates were clipped to the available range (${availableLabel}).`);
       }
     }
 

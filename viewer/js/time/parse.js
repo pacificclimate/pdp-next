@@ -206,6 +206,7 @@ export function createTimeParseHelpers({ state, TIME_EXPAND_LIMIT }) {
     const text = String(value || '').trim();
     if (!text) return '';
     const normalized = text.replace(/\//g, '-');
+
     const yearOnly = normalized.match(/^(\d{4})$/);
     if (yearOnly) {
       const year = Number(yearOnly[1]);
@@ -232,9 +233,7 @@ export function createTimeParseHelpers({ state, TIME_EXPAND_LIMIT }) {
         ? new Date(Date.UTC(year, monthIndex, day, 23, 59, 59, 999)).toISOString()
         : new Date(Date.UTC(year, monthIndex, day, 0, 0, 0, 0)).toISOString();
     }
-    const dt = new Date(normalized);
-    if (Number.isNaN(dt.getTime())) return null;
-    return dt.toISOString();
+    return null;
   }
 
   return {

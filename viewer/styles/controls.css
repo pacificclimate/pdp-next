@@ -92,11 +92,6 @@
   box-shadow: 0 0 0 1px rgba(211, 47, 47, 0.15);
 }
 
-.color-row input.is-adjusted {
-  border-color: #b26a00;
-  box-shadow: 0 0 0 1px rgba(178, 106, 0, 0.12);
-}
-
 @keyframes subset-time-shake {
   0%,
   100% {
