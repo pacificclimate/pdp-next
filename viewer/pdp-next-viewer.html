@@ -63,7 +63,17 @@
         </div>
 
         <div class="status-bar" id="statusBar">
-          <span id="statusText">Ready</span>
+          <button class="status-summary" id="statusHistoryToggle" type="button" aria-expanded="false" aria-controls="statusHistoryPanel" title="Show status history">
+            <span id="statusText" role="status" aria-live="polite">Ready</span>
+            <span class="status-history-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="status-history-panel" id="statusHistoryPanel" hidden>
+            <div class="status-history-header">
+              <strong>Activity</strong>
+              <button class="status-history-clear" id="statusHistoryClear" type="button">Clear</button>
+            </div>
+            <ol class="status-history-list" id="statusHistoryList" aria-label="Status history"></ol>
+          </div>
         </div>
       </div>
 
