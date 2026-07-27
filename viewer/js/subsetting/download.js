@@ -44,13 +44,51 @@ export function createSubsetDownloadController({
   };
 
   // Thrown to short-circuit downloadSubset()
-  class SubsetCancelled extends Error {}
+  class SubsetCancelled extends Error {
+    constructor(message = '', isError = false) {
+      super(message);
+      this.isError = isError;
+    }
+  }
 
   let activeBackgroundStatus = null;
   let activeNcPollRunId = null;
   let activeSubsetRunId = null;
   let activeFetchController = null;
   const ncpartitionerPublicRoot = new URL(ncpartitionerBase(), window.location.origin);
+
+  [subsetTimeStart, subsetTimeEnd].forEach((input) => {
+    input?.addEventListener('input', () => {
+      input.classList.remove('is-invalid', 'is-adjusted');
+      input.removeAttribute('aria-invalid');
+    });
+  });
+
+  function dateInputValue(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value || '').slice(0, 10);
+    const pad = (part) => String(part).padStart(2, '0');
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+  }
+
+  function flagTimeInputs(inputs, className = 'is-invalid') {
+    const uniqueInputs = [...new Set(inputs.filter(Boolean))];
+    uniqueInputs.forEach((input) => {
+      input.classList.remove('subset-time-shake');
+      input.getBoundingClientRect();
+      input.classList.add(className, 'subset-time-shake');
+      if (className === 'is-invalid') input.setAttribute('aria-invalid', 'true');
+      input.addEventListener('animationend', () => input.classList.remove('subset-time-shake'), { once: true });
+    });
+    if (className === 'is-invalid') uniqueInputs[0]?.focus();
+  }
+
+  function cancelInvalidTimeRange(run, reason, message, inputs) {
+    flagTimeInputs(inputs);
+    alert(message);
+    logger.finishSubsetRun(run, 'cancelled', { reason });
+    throw new SubsetCancelled(message, true);
+  }
 
   function setSubsetDownloadBusy(isBusy) {
     subsetDownloadBtn.disabled = isBusy;
@@ -252,20 +290,72 @@ export function createSubsetDownloadController({
     const startIso = parseSubsetDateValue(subsetTimeStart.value, 'start');
     const endIso = parseSubsetDateValue(subsetTimeEnd.value, 'end');
     if (startIso === null || endIso === null) {
-      alert('Please enter dates as YYYY, YYYY-MM, YYYY-MM-DD (or with / separators).');
-      logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-input' });
-      throw new SubsetCancelled();
+      const invalidInputs = [
+        ...(startIso === null ? [subsetTimeStart] : []),
+        ...(endIso === null ? [subsetTimeEnd] : [])
+      ];
+      cancelInvalidTimeRange(
+        run,
+        'invalid-date-input',
+        'Please enter dates as YYYY, YYYY-MM, YYYY-MM-DD (or with / separators).',
+        invalidInputs
+      );
     }
-    const rangeStart = startIso || '';
-    const rangeEnd = endIso || '';
+    let rangeStart = startIso || '';
+    let rangeEnd = endIso || '';
     if (rangeStart && rangeEnd && Date.parse(rangeStart) > Date.parse(rangeEnd)) {
-      alert('Start date must be before end date.');
-      logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-range' });
-      throw new SubsetCancelled();
+      cancelInvalidTimeRange(
+        run,
+        'invalid-date-range',
+        'Start date must be before end date.',
+        [subsetTimeStart, subsetTimeEnd]
+      );
     }
 
     const fullRangeStart = state.selectedLayer?.time?.start || state.times?.[0] || '';
     const fullRangeEnd = state.selectedLayer?.time?.end || state.times?.[state.times.length - 1] || fullRangeStart;
+    const availableStartMs = Date.parse(fullRangeStart);
+    const availableEndMs = Date.parse(fullRangeEnd);
+    const requestedStartMs = Date.parse(rangeStart || fullRangeStart);
+    const requestedEndMs = Date.parse(rangeEnd || fullRangeEnd);
+
+    if (
+      Number.isFinite(availableStartMs)
+      && Number.isFinite(availableEndMs)
+      && Number.isFinite(requestedStartMs)
+      && Number.isFinite(requestedEndMs)
+    ) {
+      const availableLabel = `${dateInputValue(fullRangeStart)} to ${dateInputValue(fullRangeEnd)}`;
+      if (requestedEndMs < availableStartMs || requestedStartMs > availableEndMs) {
+        const outOfRangeInputs = [
+          ...(requestedStartMs < availableStartMs || requestedStartMs > availableEndMs ? [subsetTimeStart] : []),
+          ...(requestedEndMs < availableStartMs || requestedEndMs > availableEndMs ? [subsetTimeEnd] : [])
+        ];
+        cancelInvalidTimeRange(
+          run,
+          'date-range-outside-dataset',
+          `The requested dates do not overlap this dataset's available range (${availableLabel}). No download was started.`,
+          outOfRangeInputs
+        );
+      }
+
+      const adjustedInputs = [];
+      if (rangeStart && requestedStartMs < availableStartMs) {
+        rangeStart = fullRangeStart;
+        subsetTimeStart.value = dateInputValue(fullRangeStart);
+        adjustedInputs.push(subsetTimeStart);
+      }
+      if (rangeEnd && requestedEndMs > availableEndMs) {
+        rangeEnd = fullRangeEnd;
+        subsetTimeEnd.value = dateInputValue(fullRangeEnd);
+        adjustedInputs.push(subsetTimeEnd);
+      }
+      if (adjustedInputs.length) {
+        flagTimeInputs(adjustedInputs, 'is-adjusted');
+        setStatus(`Subset dates were clipped to the available range (${availableLabel}).`);
+      }
+    }
+
     if (state.times.length) {
       const [timeStartIndex, timeEndIndex] = indexController.findTimeIndexRange(state.times, rangeStart || fullRangeStart, rangeEnd || fullRangeEnd);
       if (timeStartIndex === 0 && timeEndIndex === (state.times.length - 1)) {
@@ -543,7 +633,10 @@ export function createSubsetDownloadController({
       });
     } catch (error) {
       if (error instanceof SubsetCancelled || error?.name === 'AbortError') {
-        cancelPendingSubsetStatus(error instanceof SubsetCancelled ? error.message : '');
+        cancelPendingSubsetStatus(
+          error instanceof SubsetCancelled ? error.message : '',
+          error instanceof SubsetCancelled && error.isError
+        );
         return;
       }
       activeNcPollRunId = null;
