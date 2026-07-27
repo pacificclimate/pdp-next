@@ -17,7 +17,7 @@
   <NCISO>
     <ncmlAllow>true</ncmlAllow>
     <uddcAllow>false</uddcAllow>
-    <isoAllow>false</isoAllow>
+    <isoAllow>true</isoAllow>
   </NCISO>
   
   <NetcdfSubsetService>
