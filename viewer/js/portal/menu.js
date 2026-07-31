@@ -1,4 +1,7 @@
-import { KNOWN_PORTALS } from '../core/config.js';
+import {
+  DEFAULT_VARIABLE_LABELS,
+  KNOWN_PORTALS,
+} from '../core/config.js';
 
 function setActiveMenuItem(el) {
   document.querySelectorAll('.variable-item').forEach((i) => i.classList.remove('active'));
@@ -75,6 +78,15 @@ export function createMenuController({
     const basenameIndex = buildBasenameIndex(metaPayload);
     const selectableItems = [];
 
+    function variableMenuLabel(entry, fallbackLabel = '') {
+      const variableCode = String(entry?.metadata?.primary?.name || '').trim();
+      const menuLabel = String(entry?.menuFields?.variable || fallbackLabel || variableCode).trim();
+      if (menuLabel.toLowerCase() !== variableCode.toLowerCase()) return menuLabel;
+      return DEFAULT_VARIABLE_LABELS[variableCode]
+        || DEFAULT_VARIABLE_LABELS[variableCode.toLowerCase()]
+        || menuLabel;
+    }
+
     async function selectDataset(element, entry, basename, selectionLabel) {
       setActiveMenuItem(element);
       const isInitialUrlDataset =
@@ -86,6 +98,7 @@ export function createMenuController({
         variable: isInitialUrlDataset && initialVariable
           ? initialVariable
           : entry?.metadata?.primary?.name || null,
+        variableLabel: variableMenuLabel(entry),
         metadata: entry?.metadata || null,
         rendering: entry?.rendering || null,
         timeMetadata: entry?.metadata?.time || null
@@ -139,7 +152,7 @@ export function createMenuController({
           if (!entry?.thredds?.urlPath) return;
           const fileLi = document.createElement('li');
           fileLi.className = 'variable-item';
-          fileLi.textContent = nodeLabel;
+          fileLi.textContent = variableMenuLabel(entry, nodeLabel);
           fileLi.title = entry.thredds.urlPath;
           registerSelectable(fileLi, entry, basename, pathNow);
           containerUl.appendChild(fileLi);
@@ -150,7 +163,8 @@ export function createMenuController({
         li.className = 'menu-item';
         const header = document.createElement('div');
         header.className = 'menu-header group-header';
-        header.innerHTML = `<span>${nodeLabel}</span><span class="menu-toggle">▼</span>`;
+        const firstEntry = basenameIndex.get(String(nodeValue[0] || '').trim());
+        header.innerHTML = `<span>${variableMenuLabel(firstEntry, nodeLabel)}</span><span class="menu-toggle">▼</span>`;
         li.appendChild(header);
         const children = document.createElement('ul');
         children.className = 'menu-children';

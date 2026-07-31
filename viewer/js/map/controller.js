@@ -417,7 +417,8 @@ export function createMapController({
       state.currentDataset?.urlPath,
     ].filter(Boolean).join("\n");
     const displayVariable = state.variable
-      ? variableLabel(state.variable, state.group)
+      ? state.currentDataset?.variableLabel
+        || variableLabel(state.variable, state.group)
       : "—";
     variableInfo.textContent = displayVariable;
     if (variableIconElement) {

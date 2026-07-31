@@ -224,6 +224,7 @@ export function createDatasetController({
     selectionLabel = null,
     urlPath,
     variable,
+    variableLabel = null,
     metadata = null,
     rendering = null,
     timeMetadata = null,
@@ -237,6 +238,7 @@ export function createDatasetController({
       state.currentDataset = {
         name,
         selectionLabel,
+        variableLabel,
         urlPath,
         wmsBase: wmsBaseForUrlPath(urlPath),
         ncmlUrl: ncmlUrlForUrlPath(urlPath),
