@@ -18,12 +18,25 @@ jobs:
     name: ESLint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 20
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24"
           cache: npm
+
+      - name: Standardize npm
+        run: npm install --global npm@12
+
+      - name: Verify Node/npm toolchain
+        shell: bash
+        run: |
+          echo "Node: $(node --version)"
+          echo "npm:  $(npm --version)"
+          test "$(node --version | cut -d. -f1 | tr -d v)" = "24"
+          test "$(npm --version | cut -d. -f1)" = "12"
 
       - name: Install dependencies
         run: npm ci
