@@ -51,6 +51,22 @@ export const TIME_EXPAND_LIMIT = 2000;
 export const NCSS_WARN_TIMESTEPS = 1500;
 export const DEFAULT_PORTAL_ID = "canada_mosaic";
 
+function runtimePortalIds(value) {
+  const values = Array.isArray(value) ? value : String(value || "").split(",");
+  const ids = values.map(normalizePortalId).filter(Boolean);
+  return ids.length ? new Set(ids) : null;
+}
+
+const runtimeConfig = window.PDP_RUNTIME_CONFIG || {};
+const runtimeEnabledPortalIds = runtimePortalIds(runtimeConfig.enabledPortals);
+export const ENABLED_PORTALS = runtimeEnabledPortalIds
+  ? KNOWN_PORTALS.filter((portal) => runtimeEnabledPortalIds.has(portal.id))
+  : KNOWN_PORTALS;
+
+if (!ENABLED_PORTALS.length) {
+  throw new Error("ENABLED_PORTALS does not contain a recognized portal ID");
+}
+
 export const PALETTE_LABELS = {
   default: "Default",
   "seq-Blues": "Sequential Blues",
@@ -105,6 +121,11 @@ export function isKnownPortalId(value) {
   return !!id && KNOWN_PORTALS.some((portal) => portal.id === id);
 }
 
+export function isEnabledPortalId(value) {
+  const id = normalizePortalId(value);
+  return !!id && ENABLED_PORTALS.some((portal) => portal.id === id);
+}
+
 export function buildDefaultPortalConfig(portalId) {
   const id = normalizePortalId(portalId);
   const known = KNOWN_PORTALS.find((portal) => portal.id === id);
@@ -130,10 +151,10 @@ export function buildDefaultPortalConfig(portalId) {
 export function readPortalId() {
   const url = new URL(window.location.href);
   const raw = normalizePortalId(url.searchParams.get(PORTAL_PARAM_KEY));
-  if (isKnownPortalId(raw)) return raw;
+  if (isEnabledPortalId(raw)) return raw;
   const match = url.pathname.match(/\/portal(?:=|\/)([^/]+)\/?$/i);
   const pathPortalId = normalizePortalId(match?.[1]);
-  if (isKnownPortalId(pathPortalId)) return pathPortalId;
+  if (isEnabledPortalId(pathPortalId)) return pathPortalId;
   return null;
 }
 
@@ -226,8 +247,9 @@ export function buildViewerUrl(
 }
 
 export function readDefaultPortalId() {
-  const runtimeDefault = window.PDP_DEFAULT_PORTAL_ID;
+  const runtimeDefault = runtimeConfig.defaultPortal || window.PDP_DEFAULT_PORTAL_ID;
   const candidate = normalizePortalId(runtimeDefault || DEFAULT_PORTAL_ID);
-  if (!candidate) return null;
-  return isKnownPortalId(candidate) ? candidate : DEFAULT_PORTAL_ID;
+  if (candidate && isEnabledPortalId(candidate)) return candidate;
+  if (isEnabledPortalId(DEFAULT_PORTAL_ID)) return DEFAULT_PORTAL_ID;
+  return ENABLED_PORTALS[0]?.id || null;
 }

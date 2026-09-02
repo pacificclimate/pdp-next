@@ -1,0 +1,4 @@
+window.PDP_RUNTIME_CONFIG = {
+  enabledPortals: "${ENABLED_PORTALS}",
+  defaultPortal: "${DEFAULT_PORTAL_ID}",
+};
