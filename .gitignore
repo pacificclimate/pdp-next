@@ -6,3 +6,15 @@ __pycache__/
 */logs/*
 */ncpartitioner-output/*
 node_modules/
+portal-meta/bccaqv2_u5.json
+portal-meta/bccaqv2_u6.json
+portal-meta/canada_mosaic.json
+portal-meta/canesm5_m6.json
+portal-meta/canesm5_u6.json
+portal-meta/gridded_daily.json
+portal-meta/mbcn.json
+portal-meta/prism.json
+portal-meta/vicgl.json
+portal-prep/db-export.csv
+.gitignore
+portal-prep/pdp_min_max.csv

@@ -22,6 +22,28 @@ menu rules from `portal_meta_builder/portals.py`.
 
 ## Scripts
 
+### Run the frontend locally
+
+Run the local viewer while proxying portal metadata, THREDDS, and
+ncpartitioner requests to Beehive:
+
+```bash
+npm run dev
+```
+
+Then open <http://127.0.0.1:4173/pdp-next/>. Local files under `viewer/` are
+served without caching, while `/pdp-next/portal-meta/`,
+`/pdp-next/thredds/`, and `/pdp-next/ncpartitioner/` are fetched through the
+same-origin development proxy.
+
+The defaults can be overridden when needed:
+
+```bash
+PDP_DEV_PORT=8080 \
+PDP_DEV_UPSTREAM=https://beehive.pacificclimate.org \
+npm run dev
+```
+
 ### Build hardlink mirror
 
 ```bash

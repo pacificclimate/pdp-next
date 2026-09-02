@@ -89,11 +89,12 @@ export function createSubsetIndexController({
   async function getNcpartitionerIndexInfo(urlPath) {
     const key = String(urlPath || '');
     if (state.ncpIndexCache[key]) return state.ncpIndexCache[key];
-    const [lat, lon] = await Promise.all([
+    const [lat, lon, time] = await Promise.all([
       fetchOpendapDimensionValues(urlPath, 'lat'),
-      fetchOpendapDimensionValues(urlPath, 'lon')
+      fetchOpendapDimensionValues(urlPath, 'lon'),
+      fetchOpendapDimensionValues(urlPath, 'time')
     ]);
-    const indexInfo = { lat, lon };
+    const indexInfo = { lat, lon, timeCount: time.length };
     state.ncpIndexCache[key] = indexInfo;
     return indexInfo;
   }

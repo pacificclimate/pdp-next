@@ -4,8 +4,13 @@ export const timeSlider = document.getElementById('timeSlider');
 export const timeSliderContainer = document.getElementById('timeSliderContainer');
 export const timeValue = document.getElementById('timeValue');
 export const statusText = document.getElementById('statusText');
+const statusHistoryToggle = document.getElementById('statusHistoryToggle');
+const statusHistoryPanel = document.getElementById('statusHistoryPanel');
+const statusHistoryList = document.getElementById('statusHistoryList');
+const statusHistoryClear = document.getElementById('statusHistoryClear');
 export const datasetName = document.getElementById('datasetName');
 export const variableInfo = document.getElementById('variableInfo');
+export const selectionVariableIcon = document.getElementById('selectionVariableIcon');
 export const timeInfo = document.getElementById('timeInfo');
 export const metadataBtn = document.getElementById('metadataBtn');
 export const paletteSelect = document.getElementById('paletteSelect');
@@ -36,12 +41,94 @@ export const subsetDownloadBtn = document.getElementById('subsetDownloadBtn');
 const STATUS_SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const DEFAULT_READY_STATUS = 'Ready';
 const STATUS_RESET_DELAY_MS = 4000;
+const STATUS_HISTORY_LIMIT = 100;
 
 let statusSpinnerTimer = null;
 let statusSpinnerFrame = 0;
 let statusSpinnerStartedAt = 0;
 let statusSuppressed = false;
 let statusResetTimer = null;
+let nextStatusHistoryId = 1;
+const statusHistory = [];
+
+function historyMessage(message) {
+  return String(message ?? '')
+    .replace(/^[\u2800-\u28ff]\s+/u, '')
+    .replace(/\s+\(\d+s\)$/u, '')
+    .trim();
+}
+
+function historyTime(date) {
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
+function renderStatusHistory() {
+  if (!statusHistoryList || statusHistoryPanel?.hidden) return;
+  statusHistoryList.replaceChildren();
+
+  if (!statusHistory.length) {
+    const empty = document.createElement('li');
+    empty.className = 'status-history-empty';
+    empty.textContent = 'No activity recorded.';
+    statusHistoryList.append(empty);
+    return;
+  }
+
+  statusHistory.forEach((entry) => {
+    const item = document.createElement('li');
+    item.className = `status-history-item${entry.isError ? ' is-error' : ''}`;
+
+    const time = document.createElement('time');
+    time.className = 'status-history-time';
+    time.dateTime = entry.at.toISOString();
+    time.textContent = historyTime(entry.at);
+
+    const message = document.createElement('span');
+    message.className = 'status-history-message';
+    message.textContent = entry.message;
+
+    item.append(time, message);
+    statusHistoryList.append(item);
+  });
+}
+
+function recordStatus(message, isError) {
+  const normalizedMessage = historyMessage(message);
+  if (!normalizedMessage) return;
+
+  const latest = statusHistory[0];
+  if (latest?.message === normalizedMessage && latest.isError === isError) return;
+
+  statusHistory.unshift({
+    id: nextStatusHistoryId++,
+    message: normalizedMessage,
+    isError,
+    at: new Date()
+  });
+  if (statusHistory.length > STATUS_HISTORY_LIMIT) statusHistory.length = STATUS_HISTORY_LIMIT;
+  renderStatusHistory();
+}
+
+function setStatusHistoryOpen(open) {
+  if (!statusHistoryToggle || !statusHistoryPanel) return;
+  statusHistoryPanel.hidden = !open;
+  statusHistoryToggle.setAttribute('aria-expanded', String(open));
+  statusHistoryToggle.title = open ? 'Hide status history' : 'Show status history';
+  if (open) renderStatusHistory();
+}
+
+statusHistoryToggle?.addEventListener('click', () => {
+  setStatusHistoryOpen(statusHistoryToggle.getAttribute('aria-expanded') !== 'true');
+});
+
+statusHistoryClear?.addEventListener('click', () => {
+  statusHistory.length = 0;
+  renderStatusHistory();
+});
 
 export function suppressStatusUpdates() { statusSuppressed = true; }
 export function unsuppressStatusUpdates() { statusSuppressed = false; }
@@ -67,6 +154,7 @@ export function setStatus(message, isError = false) {
   clearStatusResetTimer();
   statusText.textContent = message;
   statusText.style.color = isError ? '#d32f2f' : 'var(--text-muted)';
+  recordStatus(message, isError);
   scheduleStatusReset(isError);
 }
 
@@ -74,6 +162,7 @@ export function forceSetStatus(message, isError = false) {
   clearStatusResetTimer();
   statusText.textContent = message;
   statusText.style.color = isError ? '#d32f2f' : 'var(--text-muted)';
+  recordStatus(message, isError);
   scheduleStatusReset(isError);
 }
 
@@ -96,3 +185,5 @@ export function stopStatusSpinner(message, isError = false) {
   }
   if (message) setStatus(message, isError);
 }
+
+recordStatus(DEFAULT_READY_STATUS, false);
