@@ -4,8 +4,10 @@ import {
   CRS_OPTIONS,
   DEFAULT_CANADA_BBOX_4326,
   buildDefaultPortalConfig,
+  buildViewerUrl,
   readPortalId,
   readDefaultPortalId,
+  readViewerUrlState,
 } from "./core/config.js";
 import { createTimeController } from "./time.js";
 import { createMenuController } from "./portal/menu.js";
@@ -24,6 +26,7 @@ import {
   timeValue,
   datasetName,
   variableInfo,
+  selectionVariableIcon,
   timeInfo,
   paletteSelect,
   scaleMin,
@@ -59,6 +62,7 @@ import {
 
 const requestedPortalId = readPortalId();
 const resolvedPortalId = requestedPortalId || readDefaultPortalId();
+const initialUrlState = readViewerUrlState();
 let portal = buildDefaultPortalConfig(resolvedPortalId);
 
 let groups = Array.isArray(portal.groups) ? portal.groups : [];
@@ -205,11 +209,105 @@ const {
   updateMap,
   setLayerOpacity,
   fitMapToBbox4326,
+  getViewBbox4326,
   populateCrsSelect,
 } = mapController;
 
 const refreshInfoPanel = () =>
-  updateInfoPanel(datasetName, variableInfo, timeInfo);
+  updateInfoPanel(datasetName, variableInfo, timeInfo, selectionVariableIcon);
+
+let initialViewerStatePending = true;
+let viewerUrlReady = false;
+let viewerUrlTimer = null;
+
+function selectHasValue(select, value) {
+  return Array.from(select?.options || []).some((option) => option.value === value);
+}
+
+function applyInitialViewerState() {
+  if (!initialViewerStatePending) return;
+
+  if (initialUrlState.crs && ol.proj.get(initialUrlState.crs)) {
+    setMapProjection(initialUrlState.crs);
+    crsSelect.value = getCurrentCrs();
+  }
+  if (initialUrlState.style && selectHasValue(styleSelect, initialUrlState.style)) {
+    styleSelect.value = initialUrlState.style;
+  }
+  if (initialUrlState.palette && selectHasValue(paletteSelect, initialUrlState.palette)) {
+    paletteSelect.value = initialUrlState.palette;
+  }
+  if (initialUrlState.min !== null) scaleMin.value = String(initialUrlState.min);
+  if (initialUrlState.max !== null) scaleMax.value = String(initialUrlState.max);
+  if (initialUrlState.colors !== null) {
+    numColors.value = String(Math.min(254, Math.max(2, initialUrlState.colors)));
+  }
+  if (initialUrlState.opacity !== null) {
+    opacitySlider.value = String(
+      Math.min(100, Math.max(0, initialUrlState.opacity)),
+    );
+  }
+  if (initialUrlState.time) {
+    let timeIndex = state.times.indexOf(initialUrlState.time);
+    if (timeIndex < 0) {
+      const wantedTime = Date.parse(initialUrlState.time);
+      if (Number.isFinite(wantedTime)) {
+        timeIndex = state.times.findIndex(
+          (value) => Date.parse(value) === wantedTime,
+        );
+      }
+    }
+    if (timeIndex >= 0) timeSlider.value = String(timeIndex);
+  }
+  updateTimeUI();
+  syncPaletteEnabled();
+
+  if (initialUrlState.view) {
+    const [west, south, east, north] = initialUrlState.view;
+    fitMapToBbox4326({ west, south, east, north });
+  }
+  initialViewerStatePending = false;
+}
+
+function currentViewerUrlState() {
+  const bbox = getViewBbox4326();
+  const selectedTime = getSelectedTime();
+  return {
+    dataset: state.currentDataset?.urlPath || null,
+    variable: state.selectedLayer?.name || state.variable,
+    view: bbox ? [bbox.west, bbox.south, bbox.east, bbox.north] : null,
+    crs: getCurrentCrs(),
+    palette: paletteSelect.value,
+    style: styleSelect.value,
+    min: scaleMin.value === '' ? null : Number(scaleMin.value),
+    max: scaleMax.value === '' ? null : Number(scaleMax.value),
+    colors: Number(numColors.value),
+    opacity: Number(opacitySlider.value),
+    time: selectedTime === '—' ? null : selectedTime,
+  };
+}
+
+function scheduleViewerUrlSync() {
+  if (!viewerUrlReady || !state.currentDataset) return;
+  if (viewerUrlTimer) window.clearTimeout(viewerUrlTimer);
+  viewerUrlTimer = window.setTimeout(() => {
+    const nextUrl = buildViewerUrl(
+      resolvedPortalId,
+      currentViewerUrlState(),
+    );
+    if (nextUrl !== window.location.href) {
+      window.history.replaceState(null, '', nextUrl);
+    }
+    viewerUrlTimer = null;
+  }, 120);
+}
+
+function markViewerUrlReady() {
+  viewerUrlReady = true;
+  scheduleViewerUrlSync();
+}
+
+map.on('moveend', scheduleViewerUrlSync);
 
 let cancelPendingSubsetStatus = () => {};
 
@@ -256,6 +354,8 @@ const datasetController = createDatasetController({
   render: {
     refreshInfoPanel,
     updateMap,
+    applyInitialViewerState,
+    viewerStateChanged: markViewerUrlReady,
   },
 });
 
@@ -269,6 +369,8 @@ const {
 
 const menuController = createMenuController({
   portal,
+  initialDatasetUrlPath: initialUrlState.dataset,
+  initialVariable: initialUrlState.variable,
   ui: {
     datasetMenu,
     portalSelect,
@@ -344,7 +446,7 @@ async function setActiveGroup(groupId) {
 
 wireEvents({
   state,
-  requestedPortalId,
+  activePortalId: resolvedPortalId,
   getSubsetTimeMode,
   getSelectedTimeIndex,
   getSelectedTimeLabel,
@@ -359,16 +461,25 @@ wireEvents({
   syncPaletteEnabled,
   setMapProjection,
   getCurrentCrs,
-  fitMapToBbox4326,
   setSubsetDrawMode,
   clearSubsetDrawing,
   downloadSubset,
+  viewerStateChanged: scheduleViewerUrlSync,
 });
 
 updateViewerTitle();
 populatePortalSelect();
 populateCrsSelect(CRS_OPTIONS);
-fitMapToBbox4326(DEFAULT_CANADA_BBOX_4326);
+if (initialUrlState.crs && ol.proj.get(initialUrlState.crs)) {
+  setMapProjection(initialUrlState.crs);
+  crsSelect.value = getCurrentCrs();
+}
+if (initialUrlState.view) {
+  const [west, south, east, north] = initialUrlState.view;
+  fitMapToBbox4326({ west, south, east, north });
+} else {
+  fitMapToBbox4326(DEFAULT_CANADA_BBOX_4326);
+}
 subsetSpatialMode.value = state.subset.spatialMode;
 setSubsetDrawMode(state.subset.spatialMode);
 updateSubsetTimeInputsEnabled();

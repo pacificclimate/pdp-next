@@ -11,6 +11,13 @@ body {
   font-family: var(--sans);
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 a {
   color: var(--pcic-blue);
   text-decoration: none;

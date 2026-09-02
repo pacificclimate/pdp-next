@@ -111,6 +111,46 @@ export function createMapController({
   map.addLayer(subsetDrawLayer);
   let wmsLayer = null;
 
+  function validExtent(extent) {
+    return (
+      Array.isArray(extent) &&
+      extent.length === 4 &&
+      extent.every(Number.isFinite) &&
+      extent[0] <= extent[2] &&
+      extent[1] <= extent[3]
+    );
+  }
+
+  function captureViewExtent4326(projection) {
+    const size = map.getSize();
+    if (!size) return null;
+    const extent = map.getView().calculateExtent(size);
+    if (!validExtent(extent)) return null;
+    const geographicExtent = olRef.proj.transformExtent(
+      extent,
+      projection,
+      "EPSG:4326",
+      8,
+    );
+    return validExtent(geographicExtent) ? geographicExtent : null;
+  }
+
+  function reprojectSubsetFeatures(previousCrs, nextCrs) {
+    subsetDrawSource.getFeatures().forEach((feature) => {
+      const geometry = feature.getGeometry();
+      if (!geometry) return;
+      let sourceGeometry = feature.get("selectionGeometry");
+      let sourceCrs = feature.get("selectionCrs");
+      if (!sourceGeometry?.clone || !sourceCrs) {
+        sourceGeometry = geometry.clone();
+        sourceCrs = previousCrs;
+        feature.set("selectionGeometry", sourceGeometry.clone(), true);
+        feature.set("selectionCrs", sourceCrs, true);
+      }
+      feature.setGeometry(sourceGeometry.clone().transform(sourceCrs, nextCrs));
+    });
+  }
+
   function setMapProjection(nextCrs) {
     const code = String(nextCrs || "")
       .trim()
@@ -118,11 +158,8 @@ export function createMapController({
     if (!olRef.proj.get(code)) return false;
     if (code === currentCrs) return true;
     const previousCrs = currentCrs;
-    subsetDrawSource.getFeatures().forEach((feature) => { // Reproject any existing subset drawing to the new CRS
-      const geometry = feature.getGeometry();
-      if (!geometry) return;
-      geometry.transform(previousCrs, code);
-    });
+    const previousViewExtent = captureViewExtent4326(previousCrs);
+    reprojectSubsetFeatures(previousCrs, code);
     currentCrs = code;
     const nextCenter = olRef.proj.transform(
       DEFAULT_VIEW_CENTER_LONLAT,
@@ -135,6 +172,20 @@ export function createMapController({
       zoom: 3,
     });
     map.setView(mapView);
+    if (previousViewExtent) {
+      const projectedViewExtent = olRef.proj.transformExtent(
+        previousViewExtent,
+        "EPSG:4326",
+        currentCrs,
+        8,
+      );
+      if (validExtent(projectedViewExtent)) {
+        mapView.fit(projectedViewExtent, {
+          padding: [0, 0, 0, 0],
+          duration: 0,
+        });
+      }
+    }
     return true;
   }
 
@@ -301,12 +352,80 @@ export function createMapController({
     legendPanel.classList.remove("hidden");
   }
 
-  function updateInfoPanel(datasetName, variableInfo, timeInfo) {
-    datasetName.textContent = state.currentDataset?.name || "—";
-    datasetName.title = state.currentDataset?.urlPath || "";
-    variableInfo.textContent = state.variable
-      ? variableLabel(state.variable, state.group)
+  function variableIcon(variableName, displayLabel) {
+    const metadata = state.currentDataset?.metadata?.primary || {};
+    const identity = [
+      variableName,
+      displayLabel,
+      metadata.long_name,
+      metadata.standard_name,
+    ].filter(Boolean).join(" ").toLowerCase().replaceAll("_", " ");
+    if (/\b(tas|max(?:imum)? temperature|min(?:imum)? temperature|temperature)\b/.test(identity)) {
+      return {
+        kind: "temperature",
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 14.8V5a3 3 0 0 0-6 0v9.8a5 5 0 1 0 6 0Z"/><path d="M11 7v10"/></svg>',
+      };
+    }
+    if (/\b(snow|swe)\b/.test(identity)) {
+      return {
+        kind: "snow",
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20M4 7l16 10M20 7 4 17M8.5 4 12 7.5 15.5 4M8.5 20l3.5-3.5 3.5 3.5"/></svg>',
+      };
+    }
+    if (/\bglac(?:ier)?\b/.test(identity)) {
+      return {
+        kind: "glacier",
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m3 19 6-12 3 5 2-3 7 10H3Z"/><path d="m7.5 10 2 1 1.5-1M3 19c3-2 5 2 8 0s5 2 10 0"/></svg>',
+      };
+    }
+    if (/\b(soil moisture|soil moist)\b/.test(identity)) {
+      return {
+        kind: "soil",
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 8h18M3 13h18M3 18h18"/><path d="M12 2s-3 3.2-3 5.5a3 3 0 0 0 6 0C15 5.2 12 2 12 2Z"/></svg>',
+      };
+    }
+    if (/\b(evap|evaporation|evapotranspiration|transpiration|pet)\b/.test(identity)) {
+      return {
+        kind: "evaporation",
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21v-8M12 16c-4 0-6-2-6-6 4 0 6 2 6 6ZM12 13c0-4 2-6 6-6 0 4-2 6-6 6Z"/><path d="M5 5c1-1 1-2 0-3M10 5c1-1 1-2 0-3"/></svg>',
+      };
+    }
+    if (/\b(baseflow|runoff|outflow|flow)\b/.test(identity)) {
+      return {
+        kind: "flow",
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 8c3-2 5 2 8 0s5 2 10 0M3 13c3-2 5 2 8 0s5 2 10 0M3 18c3-2 5 2 8 0s5 2 10 0"/></svg>',
+      };
+    }
+    if (isPrecipVariable(variableName) || /\b(precipitation|rainfall|rain)\b/.test(identity)) {
+      return {
+        kind: "precipitation",
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2S5.5 9.3 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 9.3 12 2 12 2Z"/></svg>',
+      };
+    }
+    return {
+      kind: "generic",
+      svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>',
+    };
+  }
+
+  function updateInfoPanel(datasetName, variableInfo, timeInfo, variableIconElement) {
+    const selectionLabel = state.currentDataset?.selectionLabel;
+    datasetName.textContent = selectionLabel || state.currentDataset?.name || "—";
+    datasetName.title = [
+      portal.title,
+      selectionLabel,
+      state.currentDataset?.urlPath,
+    ].filter(Boolean).join("\n");
+    const displayVariable = state.variable
+      ? state.currentDataset?.variableLabel
+        || variableLabel(state.variable, state.group)
       : "—";
+    variableInfo.textContent = displayVariable;
+    if (variableIconElement) {
+      const icon = variableIcon(state.variable, displayVariable);
+      variableIconElement.dataset.kind = icon.kind;
+      variableIconElement.innerHTML = icon.svg;
+    }
     timeInfo.textContent = getSelectedTimeLabel();
   }
 
@@ -464,6 +583,13 @@ export function createMapController({
     return true;
   }
 
+  function getViewBbox4326() {
+    const extent = captureViewExtent4326(currentCrs);
+    if (!extent) return null;
+    const [west, south, east, north] = extent;
+    return { west, south, east, north };
+  }
+
   function populateCrsSelect(CRS_OPTIONS) {
     CRS_OPTIONS.forEach(({ code, label }) => {
       const opt = document.createElement("option");
@@ -491,6 +617,7 @@ export function createMapController({
     updateMap,
     setLayerOpacity,
     fitMapToBbox4326,
+    getViewBbox4326,
     populateCrsSelect,
   };
 }

@@ -1,4 +1,4 @@
-import { WMS_VERSION, DEFAULT_CANADA_BBOX_4326 } from './core/config.js';
+import { buildPortalUrl } from './core/config.js';
 import {
   timeModeBtns,
   timeSlider,
@@ -19,7 +19,7 @@ import {
 
 export function wireEvents({
   state,
-  requestedPortalId,
+  activePortalId,
   // time
   getSubsetTimeMode,
   getSelectedTimeIndex,
@@ -36,11 +36,11 @@ export function wireEvents({
   syncPaletteEnabled,
   setMapProjection,
   getCurrentCrs,
-  fitMapToBbox4326,
   // subset
   setSubsetDrawMode,
   clearSubsetDrawing,
-  downloadSubset
+  downloadSubset,
+  viewerStateChanged
 }) {
   let lastAppliedTimeSliderValue = null;
 
@@ -60,6 +60,7 @@ export function wireEvents({
     timeValue.textContent = getSelectedTimeLabel();
     refreshInfoPanel();
     updateMap();
+    viewerStateChanged();
     return true;
   }
 
@@ -91,6 +92,7 @@ export function wireEvents({
     timeValue.textContent = getSelectedTimeLabel();
     refreshInfoPanel();
     updateMap();
+    viewerStateChanged();
   });
   timeSlider.addEventListener('change', () => {
     if (!hasMultipleTimes()) {
@@ -103,27 +105,37 @@ export function wireEvents({
     updateTimeUI();
     refreshInfoPanel();
     updateMap();
+    viewerStateChanged();
   });
 
   opacitySlider.addEventListener('input', () => {
     setLayerOpacity(opacitySlider.value);
+    viewerStateChanged();
   });
 
-  applyScaleBtn.addEventListener('click', () => updateMap());
-  styleSelect.addEventListener('change', () => { syncPaletteEnabled(); updateMap(); });
-  paletteSelect.addEventListener('change', () => updateMap());
+  applyScaleBtn.addEventListener('click', () => {
+    updateMap();
+    viewerStateChanged();
+  });
+  styleSelect.addEventListener('change', () => {
+    syncPaletteEnabled();
+    updateMap();
+    viewerStateChanged();
+  });
+  paletteSelect.addEventListener('change', () => {
+    updateMap();
+    viewerStateChanged();
+  });
 
   portalSelect.addEventListener('change', (e) => {
     const next = String(e.target.value || '').trim().toLowerCase();
-    if (!next || next === requestedPortalId) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set('portal', next);
-    window.location.href = url.toString();
+    if (!next || next === activePortalId) return;
+    window.location.assign(buildPortalUrl(next));
   });
 
   metadataBtn.addEventListener('click', () => {
     if (!state.currentDataset) return alert('Please select a dataset first');
-    window.open(`${state.currentDataset.wmsBase}?service=WMS&request=GetCapabilities&version=${encodeURIComponent(WMS_VERSION)}`, '_blank');
+    window.open(state.currentDataset.ncmlUrl, '_blank', 'noopener');
   });
 
   crsSelect.addEventListener('change', () => {
@@ -133,8 +145,8 @@ export function wireEvents({
       crsSelect.value = getCurrentCrs();
       return;
     }
-    fitMapToBbox4326(state.selectedLayer?.bbox4326 || DEFAULT_CANADA_BBOX_4326);
     updateMap();
+    viewerStateChanged();
   });
 
   subsetTimeModeInputs.forEach((input) => {

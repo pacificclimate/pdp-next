@@ -44,13 +44,57 @@ export function createSubsetDownloadController({
   };
 
   // Thrown to short-circuit downloadSubset()
-  class SubsetCancelled extends Error {}
+  class SubsetCancelled extends Error {
+    constructor(message = '', isError = false) {
+      super(message);
+      this.isError = isError;
+    }
+  }
 
   let activeBackgroundStatus = null;
   let activeNcPollRunId = null;
   let activeSubsetRunId = null;
   let activeFetchController = null;
   const ncpartitionerPublicRoot = new URL(ncpartitionerBase(), window.location.origin);
+
+  [subsetTimeStart, subsetTimeEnd].forEach((input) => {
+    input?.addEventListener('input', () => {
+      input.classList.remove('is-invalid', 'is-adjusted');
+      input.removeAttribute('aria-invalid');
+    });
+  });
+
+  function dateInputValue(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value || '').slice(0, 10);
+    const pad = (part) => String(part).padStart(2, '0');
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+  }
+
+  function flagTimeInputs(inputs, className = 'is-invalid') {
+    const uniqueInputs = [...new Set(inputs.filter(Boolean))];
+    uniqueInputs.forEach((input) => {
+      input.classList.remove('subset-time-shake');
+      input.getBoundingClientRect();
+      input.classList.add(className, 'subset-time-shake');
+      if (className === 'is-invalid') input.setAttribute('aria-invalid', 'true');
+      input.addEventListener('animationend', () => input.classList.remove('subset-time-shake'), { once: true });
+    });
+    if (className === 'is-invalid') uniqueInputs[0]?.focus();
+  }
+
+  function cancelInvalidTimeRange(run, reason, message, inputs) {
+    flagTimeInputs(inputs);
+    alert(message);
+    logger.finishSubsetRun(run, 'cancelled', { reason });
+    throw new SubsetCancelled(message, true);
+  }
+
+  function cancelSubsetWithError(run, reason, message) {
+    alert(message);
+    logger.finishSubsetRun(run, 'cancelled', { reason });
+    throw new SubsetCancelled(message, true);
+  }
 
   function setSubsetDownloadBusy(isBusy) {
     subsetDownloadBtn.disabled = isBusy;
@@ -189,6 +233,32 @@ export function createSubsetDownloadController({
       && outer.north >= (inner.north - tolerance);
   }
 
+  function bboxIntersection(first, second) {
+    if (!first || !second) return null;
+    const intersection = {
+      west: Math.max(first.west, second.west),
+      south: Math.max(first.south, second.south),
+      east: Math.min(first.east, second.east),
+      north: Math.min(first.north, second.north)
+    };
+    if (![intersection.west, intersection.south, intersection.east, intersection.north].every(Number.isFinite)) return null;
+    return intersection.west <= intersection.east && intersection.south <= intersection.north
+      ? intersection
+      : null;
+  }
+
+  function intersectSpatialSelection(bbox, datasetBbox, run) {
+    const intersection = bboxIntersection(bbox, datasetBbox);
+    if (!intersection) {
+      cancelSubsetWithError(
+        run,
+        'bbox-outside-dataset',
+        'The selected area does not overlap this dataset. No download was started.'
+      );
+    }
+    return intersection;
+  }
+
   /**
    * Resolves the spatial extent for the subset based on the UI's spatial mode.
    * Returns { bbox, useWholeSpatialDomain }.
@@ -196,7 +266,8 @@ export function createSubsetDownloadController({
    * already been alerted) or if no extent could be determined.
    */
   function resolveSpatialExtent(spatialMode, run) {
-    const datasetBbox = state.selectedLayer?.bbox4326 || { west: -180, south: -90, east: 180, north: 90 };
+    const advertisedBbox = state.selectedLayer?.bbox4326 || null;
+    const datasetBbox = advertisedBbox || { west: -180, south: -90, east: 180, north: 90 };
 
     if (spatialMode === 'whole') {
       return { bbox: datasetBbox, useWholeSpatialDomain: true };
@@ -209,7 +280,10 @@ export function createSubsetDownloadController({
         logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-drawn-bbox' });
         throw new SubsetCancelled();
       }
-      return { bbox, useWholeSpatialDomain: false };
+      return {
+        bbox: advertisedBbox ? intersectSpatialSelection(bbox, advertisedBbox, run) : bbox,
+        useWholeSpatialDomain: false
+      };
     }
 
     const bbox = drawController.getCurrentViewBbox4326();
@@ -219,7 +293,12 @@ export function createSubsetDownloadController({
       throw new SubsetCancelled();
     }
     const useWholeSpatialDomain = bboxContains(bbox, datasetBbox);
-    return { bbox: useWholeSpatialDomain ? datasetBbox : bbox, useWholeSpatialDomain };
+    return {
+      bbox: useWholeSpatialDomain
+        ? datasetBbox
+        : (advertisedBbox ? intersectSpatialSelection(bbox, advertisedBbox, run) : bbox),
+      useWholeSpatialDomain
+    };
   }
 
   /**
@@ -251,21 +330,66 @@ export function createSubsetDownloadController({
 
     const startIso = parseSubsetDateValue(subsetTimeStart.value, 'start');
     const endIso = parseSubsetDateValue(subsetTimeEnd.value, 'end');
-    if (startIso === null || endIso === null) {
-      alert('Please enter dates as YYYY, YYYY-MM, YYYY-MM-DD (or with / separators).');
-      logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-input' });
-      throw new SubsetCancelled();
+    const invalidInputs = [
+      ...(startIso === null ? [subsetTimeStart] : []),
+      ...(endIso === null ? [subsetTimeEnd] : [])
+    ];
+    if (invalidInputs.length) {
+      cancelInvalidTimeRange(
+        run,
+        'invalid-date-input',
+        'Please enter dates as YYYY, YYYY-MM, YYYY-MM-DD (or with / separators).',
+        invalidInputs
+      );
     }
     const rangeStart = startIso || '';
     const rangeEnd = endIso || '';
     if (rangeStart && rangeEnd && Date.parse(rangeStart) > Date.parse(rangeEnd)) {
-      alert('Start date must be before end date.');
-      logger.finishSubsetRun(run, 'cancelled', { reason: 'invalid-date-range' });
-      throw new SubsetCancelled();
+      cancelInvalidTimeRange(
+        run,
+        'invalid-date-range',
+        'Start date must be before end date.',
+        [subsetTimeStart, subsetTimeEnd]
+      );
     }
 
     const fullRangeStart = state.selectedLayer?.time?.start || state.times?.[0] || '';
     const fullRangeEnd = state.selectedLayer?.time?.end || state.times?.[state.times.length - 1] || fullRangeStart;
+    const availableStartMs = Date.parse(fullRangeStart);
+    const availableEndMs = Date.parse(fullRangeEnd);
+    const requestedStartMs = Date.parse(rangeStart || fullRangeStart);
+    const requestedEndMs = Date.parse(rangeEnd || fullRangeEnd);
+
+    if (
+      Number.isFinite(availableStartMs)
+      && Number.isFinite(availableEndMs)
+      && Number.isFinite(requestedStartMs)
+      && Number.isFinite(requestedEndMs)
+    ) {
+      const availableLabel = `${dateInputValue(fullRangeStart)} to ${dateInputValue(fullRangeEnd)}`;
+      const availableStartDate = dateInputValue(fullRangeStart);
+      const availableEndDate = dateInputValue(fullRangeEnd);
+      const requestedStartDate = dateInputValue(rangeStart || fullRangeStart);
+      const requestedEndDate = dateInputValue(rangeEnd || fullRangeEnd);
+
+      const startOutOfRange = requestedStartDate < availableStartDate || requestedStartDate > availableEndDate;
+      const endOutOfRange = rangeEnd
+        ? (requestedEndDate < availableStartDate || requestedEndDate > availableEndDate)
+        : false;
+      if (startOutOfRange || endOutOfRange) {
+        const outOfRangeInputs = [
+          ...(startOutOfRange ? [subsetTimeStart] : []),
+          ...(endOutOfRange ? [subsetTimeEnd] : [])
+        ];
+        cancelInvalidTimeRange(
+          run,
+          'date-range-outside-dataset',
+          `Start and end dates must be within this dataset's available range (${availableLabel}). No download was started.`,
+          outOfRangeInputs
+        );
+      }
+    }
+
     if (state.times.length) {
       const [timeStartIndex, timeEndIndex] = indexController.findTimeIndexRange(state.times, rangeStart || fullRangeStart, rangeEnd || fullRangeEnd);
       if (timeStartIndex === 0 && timeEndIndex === (state.times.length - 1)) {
@@ -543,7 +667,10 @@ export function createSubsetDownloadController({
       });
     } catch (error) {
       if (error instanceof SubsetCancelled || error?.name === 'AbortError') {
-        cancelPendingSubsetStatus(error instanceof SubsetCancelled ? error.message : '');
+        cancelPendingSubsetStatus(
+          error instanceof SubsetCancelled ? error.message : '',
+          error instanceof SubsetCancelled && error.isError
+        );
         return;
       }
       activeNcPollRunId = null;
