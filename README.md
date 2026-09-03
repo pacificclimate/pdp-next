@@ -55,8 +55,8 @@ ncpartitioner requests to Beehive:
 npm run dev
 ```
 
-Then open <http://127.0.0.1:4173/pdp-next/>. Local files under `viewer/` are
-served without caching, while `/pdp-next/portal-meta/`,
+Then open <http://127.0.0.1:4173/pdp-next/>. Vite serves the frontend from
+`viewer/` and proxies `/pdp-next/portal-meta/`,
 `/pdp-next/thredds/`, and `/pdp-next/ncpartitioner/` are fetched through the
 same-origin development proxy.
 
@@ -99,6 +99,16 @@ services:
 is unset or empty, all recognized portals are enabled. If the configured
 default is not enabled, the viewer falls back to `canada_mosaic` when available,
 then to the first enabled portal.
+
+Build the deployable static frontend and optionally serve that build locally:
+
+```bash
+npm run build
+npm run preview
+```
+
+The default public base is `/pdp-next/`. Set `PDP_VITE_BASE` at build time if
+the viewer is deployed at a different path.
 
 ### Build hardlink mirror
 
