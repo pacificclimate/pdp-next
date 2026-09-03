@@ -19,3 +19,4 @@ portal-meta/vicgl.json
 portal-prep/db-export.csv
 .gitignore
 portal-prep/pdp_min_max.csv
+dist/
