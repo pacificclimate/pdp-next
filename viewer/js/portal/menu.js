@@ -1,6 +1,6 @@
 import {
   DEFAULT_VARIABLE_LABELS,
-  KNOWN_PORTALS,
+  ENABLED_PORTALS,
 } from '../core/config.js';
 
 function setActiveMenuItem(el) {
@@ -217,9 +217,9 @@ export function createMenuController({
 
   function populatePortalSelect() {
     portalSelect.innerHTML = '';
-    const ids = Array.from(new Set([...KNOWN_PORTALS.map((p) => p.id), portal.id])).filter(Boolean);
+    const ids = Array.from(new Set([...ENABLED_PORTALS.map((p) => p.id), portal.id])).filter(Boolean);
     ids.forEach((id) => {
-      const meta = KNOWN_PORTALS.find((p) => p.id === id);
+      const meta = ENABLED_PORTALS.find((p) => p.id === id);
       const opt = document.createElement('option');
       opt.value = id;
       opt.textContent = meta?.title || id;

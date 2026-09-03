@@ -2,7 +2,7 @@
   "name": "pdp-next",
   "private": true,
   "scripts": {
-    "dev": "node scripts/dev-viewer.mjs",
+    "dev": "node --env-file-if-exists=.env.local scripts/dev-viewer.mjs",
     "lint": "eslint 'viewer/js/**/*.js' 'viewer/js/*.js'",
     "lint:fix": "eslint --fix 'viewer/js/**/*.js' 'viewer/js/*.js'",
     "lint:ci": "eslint --max-warnings=999 'viewer/js/**/*.js' 'viewer/js/*.js'"
