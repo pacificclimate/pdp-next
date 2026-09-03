@@ -1,0 +1,9 @@
+# Daily Gridded Meteorological Datasets portal membership
+# PCIC Blend diagonal files
+/storage/data/climate/observations/gridded/PCIC_Blend/diagonal/*day_PCIC_Blended_Observations_v1_1950-2012.nc
+
+# VIC gen2 forcing (if present)
+/storage/data/projects/dataportal/data/vic-gen2-forcing/anusplin_*.nc
+/storage/data/projects/dataportal/data/vic-gen2-forcing/PNWNAmet_*.nc
+!/storage/data/projects/dataportal/data/vic-gen2-forcing/PNWNAmet_*invert_lat.nc
+

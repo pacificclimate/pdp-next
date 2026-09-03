@@ -1,0 +1,5 @@
+# PRISM portal membership
+
+/storage/data/climate/observations/gridded/PRISM/split_climos/*ClimMean_PRISM_historical_*.nc
+
+/storage/data/climate/observations/gridded/PRISM/bc_*_monthly_CAI_timeseries_19500101_20071231.nc

@@ -1,0 +1,22 @@
+# BCCAQv2 downscaled climate scenarios (CMIP6_BCCAQv2)
+# Excludes Derived by only including files in the top-level model directories.
+
+/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/*/*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/AgroClimate/*
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CWEC2020_Factors/*
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/Degree_Climatologies/*
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/Ensemble_Averages/*
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*_r2i1p2f1_*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*_r3i1p2f1_*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*_r4i1p2f1_*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*_r5i1p2f1_*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*_r6i1p2f1_*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*_r7i1p2f1_*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*_r8i1p2f1_*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*_r9i1p2f1_*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/*_r10i1p2f1_*.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/dtr_monmean_r1_ssp585.nc
+!/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/CanESM5/dtr_r1_ssp585.nc
+
+
+
