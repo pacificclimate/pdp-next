@@ -1,0 +1,1 @@
+window.PDP_RUNTIME_CONFIG = window.PDP_RUNTIME_CONFIG || {};

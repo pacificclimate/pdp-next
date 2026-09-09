@@ -13,6 +13,10 @@ const port = Number.parseInt(process.env.PDP_DEV_PORT || '4173', 10);
 const upstream = new URL(
   process.env.PDP_DEV_UPSTREAM || 'https://beehive.pacificclimate.org',
 );
+const runtimeConfig = {
+  enabledPortals: process.env.ENABLED_PORTALS || '',
+  defaultPortal: process.env.DEFAULT_PORTAL_ID || '',
+};
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error(`Invalid PDP_DEV_PORT: ${process.env.PDP_DEV_PORT}`);
@@ -111,6 +115,17 @@ const server = createServer(async (request, response) => {
   if (requestUrl.pathname === '/') {
     response.writeHead(302, { location: '/pdp-next/' });
     response.end();
+    return;
+  }
+
+  if (requestUrl.pathname === '/pdp-next/runtime-config.js') {
+    const body = `window.PDP_RUNTIME_CONFIG = ${JSON.stringify(runtimeConfig)};\n`;
+    response.writeHead(200, {
+      'cache-control': 'no-store',
+      'content-length': Buffer.byteLength(body),
+      'content-type': 'text/javascript; charset=utf-8',
+    });
+    response.end(request.method === 'HEAD' ? undefined : body);
     return;
   }
 

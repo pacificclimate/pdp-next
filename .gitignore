@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 .venv/
 .env
+.env.local
 */logs/*
 */ncpartitioner-output/*
 node_modules/

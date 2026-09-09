@@ -68,6 +68,38 @@ PDP_DEV_UPSTREAM=https://beehive.pacificclimate.org \
 npm run dev
 ```
 
+To test a restricted portal rollout locally, use the same environment variables
+as the deployed viewer:
+
+```bash
+ENABLED_PORTALS=canada_mosaic,prism,vicgl \
+DEFAULT_PORTAL_ID=canada_mosaic \
+npm run dev
+```
+
+For a persistent local setup, copy `.env.local.example` to `.env.local` and
+edit the values. `npm run dev` loads `.env.local` when it exists; the file is
+ignored by Git.
+
+### Configure portals at deployment time
+
+The viewer image recognizes the portals declared in `viewer/js/core/config.js`.
+A deployment can expose a subset and choose its default without rebuilding the
+image:
+
+```yaml
+services:
+  viewer:
+    environment:
+      ENABLED_PORTALS: canada_mosaic,prism,vicgl
+      DEFAULT_PORTAL_ID: canada_mosaic
+```
+
+`ENABLED_PORTALS` is a comma-separated list of recognized portal IDs. If it
+is unset or empty, all recognized portals are enabled. If the configured
+default is not enabled, the viewer falls back to `canada_mosaic` when available,
+then to the first enabled portal.
+
 ### Build hardlink mirror
 
 ```bash
