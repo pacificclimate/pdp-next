@@ -5,6 +5,7 @@ export function createTimeUiController({
   timeSliderContainer,
   timeValue,
   subsetTimeModeFull,
+  subsetTimeModeCurrent,
   subsetTimeModeRange,
   subsetTimeModeInputs,
   subsetTimeStart,
@@ -41,14 +42,22 @@ export function createTimeUiController({
   }
 
   function normalizeSubsetTimeSelection() {
-    if (!allowsRangeSubset() && subsetTimeModeRange.checked) subsetTimeModeFull.checked = true;
+    if (
+      (!hasMultipleTimes() && subsetTimeModeCurrent.checked)
+      || (!allowsRangeSubset() && subsetTimeModeRange.checked)
+    ) {
+      subsetTimeModeFull.checked = true;
+    }
     state.subset.timeMode = getSubsetTimeMode();
   }
 
   function syncSubsetTimeRangeVisibility() {
     normalizeSubsetTimeSelection();
     const rangeAllowed = allowsRangeSubset();
+    const currentAllowed = hasMultipleTimes();
     const showRangeSubset = rangeAllowed;
+    subsetTimeModeCurrent.closest('.choice-option')?.classList.toggle('is-hidden', !currentAllowed);
+    subsetTimeModeCurrent.disabled = !currentAllowed;
     subsetTimeModeRange.closest('.choice-option')?.classList.toggle('disabled', !rangeAllowed);
     subsetTimeModeRange.disabled = !rangeAllowed;
     subsetTimeStart?.closest('.color-row')?.classList.toggle('is-hidden', !showRangeSubset);

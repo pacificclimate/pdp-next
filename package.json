@@ -1,6 +1,6 @@
 {
   "name": "pdp-next",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "node --env-file-if-exists=.env.local scripts/dev-viewer.mjs",

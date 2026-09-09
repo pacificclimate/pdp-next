@@ -89,10 +89,13 @@ export function createSubsetIndexController({
   async function getNcpartitionerIndexInfo(urlPath) {
     const key = String(urlPath || '');
     if (state.ncpIndexCache[key]) return state.ncpIndexCache[key];
+    const metadataTimeCount = Number(state.currentDataset?.timeMetadata?.count || state.times?.length || 0);
     const [lat, lon, time] = await Promise.all([
       fetchOpendapDimensionValues(urlPath, 'lat'),
       fetchOpendapDimensionValues(urlPath, 'lon'),
-      fetchOpendapDimensionValues(urlPath, 'time')
+      // A climatology has exactly one known time index. Avoid requesting its
+      // scalar coordinate from OpenDAP; ncpartitioner needs index 0.
+      metadataTimeCount === 1 ? Promise.resolve([0]) : fetchOpendapDimensionValues(urlPath, 'time')
     ]);
     const indexInfo = { lat, lon, timeCount: time.length };
     state.ncpIndexCache[key] = indexInfo;
