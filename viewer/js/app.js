@@ -1,3 +1,7 @@
+import "ol/ol.css";
+import "../viewer.css";
+import proj4 from "proj4";
+import { ol } from "./core/openlayers.js";
 import {
   TIME_EXPAND_LIMIT,
   DEFAULT_VARIABLE_LABELS,
