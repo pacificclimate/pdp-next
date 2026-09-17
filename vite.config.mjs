@@ -4,6 +4,7 @@ function runtimeConfigSource(environment) {
   return `window.PDP_RUNTIME_CONFIG = ${JSON.stringify({
     enabledPortals: environment.ENABLED_PORTALS || '',
     defaultPortal: environment.DEFAULT_PORTAL_ID || '',
+    eezBoundariesUrl: environment.EEZ_BOUNDARIES_URL || '',
   })};\n`;
 }
 

@@ -1,4 +1,4 @@
-import { WMS_VERSION, PALETTE_LABELS } from "../core/config.js";
+import { EEZ_BOUNDARIES_URL, WMS_VERSION, PALETTE_LABELS } from "../core/config.js";
 
 const PRECIP_VARIABLE_NAMES = new Set([
   "pr",
@@ -86,8 +86,32 @@ export function createMapController({
     source: new olRef.source.OSM(),
     visible: true,
   });
+  const eezFormat = new olRef.format.GeoJSON({ dataProjection: "EPSG:4326" });
+  const eezSource = new olRef.source.Vector({
+    loader: async function () {
+      const response = await fetch(EEZ_BOUNDARIES_URL);
+      if (!response.ok) throw new Error(`EEZ boundary request failed: ${response.status}`);
+      const geojson = await response.json();
+      delete geojson.crs;
+      this.addFeatures(
+        eezFormat.readFeatures(geojson, { featureProjection: currentCrs }),
+      );
+    },
+  });
+  const eezLayer = new olRef.layer.Vector({
+    source: eezSource,
+    style: new olRef.style.Style({
+      stroke: new olRef.style.Stroke({
+        color: "rgba(134, 161, 177, 0.4)",
+        width: 2,
+        lineJoin: "round",
+        lineCap: "round",
+      }),
+    }),
+  });
   const DEFAULT_VIEW_CENTER_LONLAT = [-95, 62];
   let currentCrs = String(portal.defaultCrs || "EPSG:3857").toUpperCase();
+  setEezProjectionExtent();
   let mapView = new olRef.View({
     projection: currentCrs,
     center: olRef.proj.transform(
@@ -99,7 +123,7 @@ export function createMapController({
   });
   const map = new olRef.Map({
     target: "map",
-    layers: [baseLayer],
+    layers: [baseLayer, eezLayer],
     view: mapView,
   });
   const subsetDrawSource = new olRef.source.Vector();
@@ -151,6 +175,12 @@ export function createMapController({
     });
   }
 
+  function reprojectEezFeatures(previousCrs, nextCrs) {
+    eezSource.getFeatures().forEach((feature) => {
+      feature.getGeometry()?.transform(previousCrs, nextCrs);
+    });
+  }
+
   function setMapProjection(nextCrs) {
     const code = String(nextCrs || "")
       .trim()
@@ -160,7 +190,9 @@ export function createMapController({
     const previousCrs = currentCrs;
     const previousViewExtent = captureViewExtent4326(previousCrs);
     reprojectSubsetFeatures(previousCrs, code);
+    reprojectEezFeatures(previousCrs, code);
     currentCrs = code;
+    setEezProjectionExtent();
     const nextCenter = olRef.proj.transform(
       DEFAULT_VIEW_CENTER_LONLAT,
       "EPSG:4326",
@@ -565,6 +597,10 @@ export function createMapController({
   function setLayerOpacity(opacityPercent) {
     if (!wmsLayer) return;
     wmsLayer.setOpacity(parseInt(opacityPercent, 10) / 100);
+  }
+
+  function setEezProjectionExtent() {
+    eezLayer.setExtent(olRef.proj.get(currentCrs)?.getExtent());
   }
 
   function fitMapToBbox4326(bbox) {

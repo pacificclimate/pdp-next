@@ -50,6 +50,8 @@ export const WMS_VERSION = "1.3.0";
 export const TIME_EXPAND_LIMIT = 2000;
 export const NCSS_WARN_TIMESTEPS = 1500;
 export const DEFAULT_PORTAL_ID = "canada_mosaic";
+export const DEFAULT_EEZ_BOUNDARIES_URL =
+  "https://beehive.pacificclimate.org/tiles/eez/eez_boundaries_canada_v12.geojson";
 
 function runtimePortalIds(value) {
   const values = Array.isArray(value) ? value : String(value || "").split(",");
@@ -58,6 +60,8 @@ function runtimePortalIds(value) {
 }
 
 const runtimeConfig = window.PDP_RUNTIME_CONFIG || {};
+export const EEZ_BOUNDARIES_URL =
+  runtimeConfig.eezBoundariesUrl || DEFAULT_EEZ_BOUNDARIES_URL;
 const runtimeEnabledPortalIds = runtimePortalIds(runtimeConfig.enabledPortals);
 export const ENABLED_PORTALS = runtimeEnabledPortalIds
   ? KNOWN_PORTALS.filter((portal) => runtimeEnabledPortalIds.has(portal.id))
