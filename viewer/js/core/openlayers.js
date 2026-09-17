@@ -1,6 +1,6 @@
 import Map from 'ol/Map.js';
 import View from 'ol/View.js';
-import Draw from 'ol/interaction/Draw.js';
+import Draw, { createBox } from 'ol/interaction/Draw.js';
 import TileLayer from 'ol/layer/Tile.js';
 import VectorLayer from 'ol/layer/Vector.js';
 import Projection from 'ol/proj/Projection.js';
@@ -24,7 +24,7 @@ export const ol = {
   Map,
   View,
   geom: { Polygon },
-  interaction: { Draw },
+  interaction: { Draw: Object.assign(Draw, { createBox }) },
   layer: { Tile: TileLayer, Vector: VectorLayer },
   proj: {
     Projection,
