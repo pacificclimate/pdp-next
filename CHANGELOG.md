@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-09-17
+
+### Fixed
+- BBOX subsetting [#27](https://github.com/pacificclimate/pdp-next/pull/27)
+
 ## [1.1.0] - 2026-09-10
 
 ### Changed
