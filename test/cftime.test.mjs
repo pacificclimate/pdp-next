@@ -100,6 +100,22 @@ test('ncpartitioner index info retains raw OpenDAP time values', async () => {
   assert.equal(info.timeCount, 2);
 });
 
+test('ncpartitioner index info retains the first OpenDAP block value', async () => {
+  const controller = createSubsetIndexController({
+    state: { ncpIndexCache: {}, currentDataset: { timeMetadata: { count: 3 } } },
+    fetchText: async (url) => {
+      if (url.endsWith('lat')) return 'lat[1]\n50\n';
+      if (url.endsWith('lon')) return 'lon[1]\n-120\n';
+      return 'time[3]\n11160.5, 11161.5, 11162.5\n';
+    },
+    dodsBaseForUrlPath: () => 'https://example.test/data'
+  });
+  const info = await controller.getNcpartitionerIndexInfo('/data.nc');
+
+  assert.deepEqual(info.time, [11160.5, 11161.5, 11162.5]);
+  assert.deepEqual(controller.findBoundedIndexRange(info.time, 11160, 11162), [0, 1]);
+});
+
 test('range ending on 1582-10-04 skips the standard-calendar gap', () => {
   assert.notEqual(dateRangeToCfBounds('1582-10-01', '1582-10-04', 'days since 1582-01-01', 'standard'), null);
 });
