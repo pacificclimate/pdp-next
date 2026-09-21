@@ -22,6 +22,15 @@ test('normalizes supported CF calendar aliases', () => {
   assert.equal(normalizeCalendar('all_leap'), '366_day');
 });
 
+test('parses calendar-neutral year, month, and full-date tokens', () => {
+  assert.deepEqual(parseCfDate('1981'), {
+    year: 1981, month: null, day: null, hour: 0, minute: 0, second: 0,
+    millisecond: 0, timezoneOffsetMinutes: 0, precision: 'year'
+  });
+  assert.equal(parseCfDate('1981-02').precision, 'month');
+  assert.equal(parseCfDate('1981-02-30 12:34:56').day, 30);
+});
+
 test('validates calendar-specific dates and CF standard transition', () => {
   assert.equal(validateCfDate(parseCfDate('1981-02-30'), '360_day'), true);
   assert.equal(validateCfDate(parseCfDate('1981-12-31'), '360_day'), false);
@@ -33,6 +42,7 @@ test('validates calendar-specific dates and CF standard transition', () => {
   assert.equal(validateCfDate(parseCfDate('1582-10-10'), 'standard'), false);
   assert.equal(dateToCfNumber('1582-10-15', 'days since 1582-10-04', 'standard'), 1);
   assert.equal(dateToCfNumber('1582-10-15', 'days since 1582-10-04', 'gregorian'), 1);
+  assert.equal(dateToCfNumber('1900-03-01', 'days since 1900-02-28', 'julian'), 2);
 });
 
 test('explains invalid CF date boundaries', () => {
