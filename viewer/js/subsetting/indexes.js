@@ -15,10 +15,16 @@ export function createSubsetIndexController({
     });
     if (values.length) return values;
     const fallback = [];
-    const fallbackRegex = /,\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/g;
+    const blockHeader = new RegExp(`^\\s*${varName}\\[\\d+\\]\\s*$`, 'm').exec(text);
+    const blockValues = blockHeader
+      ? text.slice(blockHeader.index + blockHeader[0].length)
+      : text;
+    const fallbackRegex = blockHeader
+      ? /[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/g
+      : /,\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/g;
     let match;
-    while ((match = fallbackRegex.exec(text)) !== null) {
-      const value = Number(match[1]);
+    while ((match = fallbackRegex.exec(blockValues)) !== null) {
+      const value = Number(blockHeader ? match[0] : match[1]);
       if (Number.isFinite(value)) fallback.push(value);
     }
     return fallback;
