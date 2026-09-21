@@ -200,6 +200,51 @@ function boundaryDate(value, boundary, calendar) {
   return date;
 }
 
+function formatCfDate(date) {
+  const year = String(date.year).padStart(4, '0');
+  return `${year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+}
+
+function describeBoundaryError(value, boundary, calendar) {
+  const label = boundary === 'start' ? 'Start' : 'End';
+  const date = parseCfDate(value);
+  if (!date) {
+    return `${label} date must use YYYY, YYYY-MM, or YYYY-MM-DD.`;
+  }
+  if (date.month !== null && (date.month < 1 || date.month > 12)) {
+    return `${label} date "${value}" has an invalid month; use a month from 01 through 12.`;
+  }
+  if (date.day !== null && date.month !== null) {
+    const maxDay = daysInMonth(date.year, date.month, calendar);
+    if (date.day < 1 || date.day > maxDay) {
+      const nearest = Math.max(1, Math.min(date.day, maxDay));
+      return `${label} date "${value}" is invalid for the ${calendar} calendar: `
+        + `${formatCfDate({ ...date, day: nearest })} is the nearest valid date.`;
+    }
+  }
+  if ((calendar === 'standard' || calendar === 'gregorian') && isStandardGap(date)) {
+    return `${label} date "${value}" is in the ${calendar} calendar gap; `
+      + 'use a date on or before 1582-10-04 or on or after 1582-10-15.';
+  }
+  return `${label} date "${value}" is not valid for the ${calendar} calendar.`;
+}
+
+export function describeCfDateRangeError(startValue, endValue, calendar = 'standard') {
+  const normalizedCalendar = normalizeCalendar(calendar);
+  if (!normalizedCalendar) return null;
+  const start = boundaryDate(startValue, 'start', normalizedCalendar);
+  if (!start) return { field: 'start', message: describeBoundaryError(startValue, 'start', normalizedCalendar) };
+  const end = boundaryDate(endValue, 'end', normalizedCalendar);
+  if (!end) return { field: 'end', message: describeBoundaryError(endValue, 'end', normalizedCalendar) };
+  if (dayNumber(start, normalizedCalendar) > dayNumber(end, normalizedCalendar)) {
+    return {
+      field: 'range',
+      message: `Start date "${startValue}" must be earlier than end date "${endValue}" for the ${normalizedCalendar} calendar.`
+    };
+  }
+  return null;
+}
+
 function nextDay(date, calendar) {
   const result = { ...date, hour: 0, minute: 0, second: 0, millisecond: 0, timezoneOffsetMinutes: 0 };
   result.day += 1;
