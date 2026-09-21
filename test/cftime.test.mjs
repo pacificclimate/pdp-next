@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 
 import {
+  cfNumberToIso,
   dateRangeToCfBounds,
   describeCfDateRangeError,
   dateToCfNumber,
@@ -11,9 +12,10 @@ import {
   parseCfUnits,
   validateCfDate
 } from '../viewer/js/time/cftime.js';
-import { createSubsetIndexController } from '../viewer/js/subsetting/indexes.js';
+import { createSubsetIndexController, parseAsciiDimensionValues } from '../viewer/js/subsetting/indexes.js';
 
 test('normalizes supported CF calendar aliases', () => {
+  assert.equal(normalizeCalendar(), 'standard');
   assert.equal(normalizeCalendar('360'), '360_day');
   assert.equal(normalizeCalendar('365'), '365_day');
   assert.equal(normalizeCalendar('noleap'), '365_day');
@@ -60,6 +62,24 @@ test('BCCAQv2 360_day regression selects the actual 1981 daily-noon coordinate r
   assert.equal(values[indexes[0]], 11160.5);
   assert.equal(values[indexes[1]], 11519.5);
   assert.equal(dateRangeToCfBounds('1981-01-01', '1981-12-31', units, '360_day'), null);
+});
+
+test('converts raw 360_day coordinates to their calendar dates for WMS', () => {
+  const units = 'days since 1950-01-01';
+  assert.equal(cfNumberToIso(11160.5, units, '360_day'), '1981-01-01T12:00:00Z');
+  assert.equal(cfNumberToIso(11519.5, units, '360_day'), '1981-12-30T12:00:00Z');
+  assert.equal(cfNumberToIso(30.5, 'days since 1981-01-01', '360_day'), '1981-02-01T12:00:00Z');
+});
+
+test('converts standard-calendar coordinates through the same CF path', () => {
+  assert.equal(
+    cfNumberToIso(365.5, 'days since 1981-01-01', 'standard'),
+    '1982-01-01T12:00:00Z'
+  );
+  assert.equal(
+    cfNumberToIso(365.5, 'days since 1981-01-01'),
+    '1982-01-01T12:00:00Z'
+  );
 });
 
 test('selects the same 360_day dates from descending coordinates', () => {
@@ -115,6 +135,27 @@ test('ncpartitioner index info retains raw OpenDAP time values', async () => {
   assert.equal(info.timeCount, 2);
 });
 
+test('ncpartitioner reuses the time coordinate fetched for a CF slider', async () => {
+  let requestedTime = false;
+  const controller = createSubsetIndexController({
+    state: {
+      ncpIndexCache: {},
+      timeCoordinateCache: { '/data.nc': [11160.5, 11161.5] },
+      currentDataset: { timeMetadata: { count: 2 } }
+    },
+    fetchText: async (url) => {
+      if (url.endsWith('time')) requestedTime = true;
+      if (url.endsWith('lat')) return 'lat[0], 50\n';
+      return 'lon[0], -120\n';
+    },
+    dodsBaseForUrlPath: () => 'https://example.test/data'
+  });
+  const info = await controller.getNcpartitionerIndexInfo('/data.nc');
+
+  assert.equal(requestedTime, false);
+  assert.deepEqual(info.time, [11160.5, 11161.5]);
+});
+
 test('ncpartitioner index info retains the first OpenDAP block value', async () => {
   const controller = createSubsetIndexController({
     state: { ncpIndexCache: {}, currentDataset: { timeMetadata: { count: 3 } } },
@@ -129,6 +170,13 @@ test('ncpartitioner index info retains the first OpenDAP block value', async () 
 
   assert.deepEqual(info.time, [11160.5, 11161.5, 11162.5]);
   assert.deepEqual(controller.findBoundedIndexRange(info.time, 11160, 11162), [0, 1]);
+});
+
+test('parses a THREDDS OpenDAP coordinate block for slider timestamps', () => {
+  assert.deepEqual(
+    parseAsciiDimensionValues('time[3]\n11160.5, 11161.5, 11162.5\n', 'time'),
+    [11160.5, 11161.5, 11162.5]
+  );
 });
 
 test('range ending on 1582-10-04 skips the standard-calendar gap', () => {
