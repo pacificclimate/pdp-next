@@ -1,3 +1,10 @@
+import {
+  dateRangeToCfBounds,
+  isUnsupportedCalendar,
+  normalizeCalendar,
+  parseCfUnits
+} from '../time/cftime.js';
+
 export function createSubsetDownloadController({
   state,
   portal,
@@ -328,6 +335,20 @@ export function createSubsetDownloadController({
       return { timeMode, rangeStart, rangeEnd };
     }
 
+    const timeMetadata = {
+      ...(state.layerDetails?.metadata?.time || {}),
+      ...(state.currentDataset?.timeMetadata || {})
+    };
+    // Keep range input calendar-neutral when the source exposes CF time
+    // metadata. The ncpartitioner path validates and converts these values.
+    if (timeMetadata.units) {
+      return {
+        timeMode,
+        rangeStart: String(subsetTimeStart.value || '').trim().replace(/\//g, '-'),
+        rangeEnd: String(subsetTimeEnd.value || '').trim().replace(/\//g, '-')
+      };
+    }
+
     const startIso = parseSubsetDateValue(subsetTimeStart.value, 'start');
     const endIso = parseSubsetDateValue(subsetTimeEnd.value, 'end');
     const invalidInputs = [
@@ -578,7 +599,61 @@ export function createSubsetDownloadController({
         timeEndIso = state.times?.[state.times.length - 1] || timeStartIso;
       }
 
-      let [timeStart, timeEnd] = indexController.findTimeIndexRange(state.times || [], timeStartIso, timeEndIso);
+      const timeMetadata = {
+        ...(state.layerDetails?.metadata?.time || {}),
+        ...(state.currentDataset?.timeMetadata || {})
+      };
+      const calendar = normalizeCalendar(timeMetadata.calendar || 'standard');
+      const rawStart = timeMode === 'range' && rangeStart
+        ? String(subsetTimeStart?.value || rangeStart).trim().replace(/\//g, '-')
+        : timeStartIso;
+      const rawEnd = timeMode === 'range' && rangeEnd
+        ? String(subsetTimeEnd?.value || rangeEnd).trim().replace(/\//g, '-')
+        : timeEndIso;
+      let timeStart = 0;
+      let timeEnd = 0;
+      if (timeMode === 'full' && actualTimeCount > 0) {
+        timeEnd = actualTimeCount - 1;
+      } else if (actualTimeCount > 1) {
+        if (!timeMetadata.units) {
+          cancelSubsetWithError(
+            run,
+            'missing-cf-time-units',
+            'This dataset does not expose CF time units, so its time range cannot be subset safely.'
+          );
+        }
+        if (isUnsupportedCalendar(timeMetadata.calendar)) {
+          cancelSubsetWithError(
+            run,
+            'unsupported-cf-calendar',
+            `Time subsetting does not support the ${timeMetadata.calendar} calendar.`
+          );
+        }
+        if (!calendar) {
+          cancelSubsetWithError(
+            run,
+            'unknown-cf-calendar',
+            `This dataset has an unsupported CF calendar: ${timeMetadata.calendar}.`
+          );
+        }
+        if (!parseCfUnits(timeMetadata.units)) {
+          cancelSubsetWithError(
+            run,
+            'invalid-cf-time-units',
+            `This dataset has unsupported CF time units: ${timeMetadata.units}.`
+          );
+        }
+        const cfBounds = dateRangeToCfBounds(rawStart, rawEnd, timeMetadata.units, calendar);
+        if (!cfBounds) {
+          cancelInvalidTimeRange(
+            run,
+            'invalid-cf-date',
+            'The requested date is not valid for this dataset calendar.',
+            [subsetTimeStart, subsetTimeEnd]
+          );
+        }
+        [timeStart, timeEnd] = indexController.findBoundedIndexRange(indexInfo.time, cfBounds[0], cfBounds[1]);
+      }
       if (actualTimeCount > 0) {
         timeStart = Math.max(0, Math.min(timeStart, actualTimeCount - 1));
         timeEnd = Math.max(timeStart, Math.min(timeEnd, actualTimeCount - 1));

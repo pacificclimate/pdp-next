@@ -73,11 +73,17 @@ def build_portal_payload(
 
         existing = entries.get(source_key) if isinstance(entries.get(source_key), dict) else {}
         fingerprint = file_fingerprint(src)
+        cached_time = existing.get("metadata", {}).get("time", {}) if isinstance(existing.get("metadata"), dict) else {}
+        missing_time_coordinate_metadata = (
+            bool(cached_time.get("count"))
+            and (not cached_time.get("units") or not cached_time.get("calendar"))
+        )
         needs_refresh = (
             not existing
             or existing.get("fingerprint") != fingerprint
             or not isinstance(existing.get("metadata"), dict)
             or not isinstance(existing.get("menuFields"), dict)
+            or missing_time_coordinate_metadata
         )
 
         if needs_refresh:
