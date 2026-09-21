@@ -3,6 +3,7 @@ import { test } from 'vitest';
 
 import {
   dateRangeToCfBounds,
+  describeCfDateRangeError,
   dateToCfNumber,
   isUnsupportedCalendar,
   normalizeCalendar,
@@ -30,6 +31,20 @@ test('validates calendar-specific dates and CF standard transition', () => {
   assert.equal(validateCfDate(parseCfDate('1582-10-10'), 'standard'), false);
   assert.equal(dateToCfNumber('1582-10-15', 'days since 1582-10-04', 'standard'), 1);
   assert.equal(dateToCfNumber('1582-10-15', 'days since 1582-10-04', 'gregorian'), 1);
+});
+
+test('explains invalid CF date boundaries', () => {
+  const cases = [
+    ['not-a-date', '1981-01-01', '360_day', 'start', 'Start date must use YYYY, YYYY-MM, or YYYY-MM-DD.'],
+    ['1981-13-01', '1981-01-01', '360_day', 'start', 'Start date "1981-13-01" has an invalid month; use a month from 01 through 12.'],
+    ['1981-01-01', '1981-12-31', '360_day', 'end', 'End date "1981-12-31" is invalid for the 360_day calendar: 1981-12-30 is the nearest valid date.'],
+    ['1582-10-10', '1582-10-15', 'standard', 'start', 'Start date "1582-10-10" is in the standard calendar gap; use a date on or before 1582-10-04 or on or after 1582-10-15.'],
+    ['1957-01-01', '1958-01-01', 'tai', 'start', 'Start date "1957-01-01" is not valid for the tai calendar.'],
+    ['1981-02-01', '1981-01-01', '360_day', 'range', 'Start date "1981-02-01" must be earlier than end date "1981-01-01" for the 360_day calendar.']
+  ];
+  cases.forEach(([start, end, calendar, field, message]) => {
+    assert.deepEqual(describeCfDateRangeError(start, end, calendar), { field, message });
+  });
 });
 
 test('BCCAQv2 360_day regression selects the actual 1981 daily-noon coordinate range', () => {

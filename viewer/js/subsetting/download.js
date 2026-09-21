@@ -1,5 +1,6 @@
 import {
   dateRangeToCfBounds,
+  describeCfDateRangeError,
   isUnsupportedCalendar,
   normalizeCalendar,
   parseCfUnits
@@ -645,11 +646,18 @@ export function createSubsetDownloadController({
         }
         const cfBounds = dateRangeToCfBounds(rawStart, rawEnd, timeMetadata.units, calendar);
         if (!cfBounds) {
+          const validationError = describeCfDateRangeError(rawStart, rawEnd, calendar);
+          const invalidInputs = validationError?.field === 'start'
+            ? [subsetTimeStart]
+            : validationError?.field === 'end'
+              ? [subsetTimeEnd]
+              : [subsetTimeStart, subsetTimeEnd];
           cancelInvalidTimeRange(
             run,
             'invalid-cf-date',
-            'The requested date is not valid for this dataset calendar.',
-            [subsetTimeStart, subsetTimeEnd]
+            validationError?.message
+              || 'Start date must be earlier than end date.',
+            invalidInputs
           );
         }
         [timeStart, timeEnd] = indexController.findBoundedIndexRange(indexInfo.time, cfBounds[0], cfBounds[1]);
