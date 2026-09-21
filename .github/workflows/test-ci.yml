@@ -2,10 +2,14 @@ name: Test CI
 
 on:
   push:
+
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Vitest and metadata tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -23,11 +27,22 @@ jobs:
       - name: Standardize npm
         run: npm install --global npm@12
 
+      - name: Verify Node/npm toolchain
+        shell: bash
+        run: |
+          echo "Node: $(node --version)"
+          echo "npm:  $(npm --version)"
+          test "$(node --version | cut -d. -f1 | tr -d v)" = "24"
+          test "$(npm --version | cut -d. -f1)" = "12"
+
       - name: Install Node dependencies
         run: npm ci
 
       - name: Install Python test dependency
         run: python -m pip install --disable-pip-version-check netCDF4
 
-      - name: Test
+      - name: Test 
         run: npm test
+
+      - name: Build
+        run: npm run build
