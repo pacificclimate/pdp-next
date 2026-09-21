@@ -169,6 +169,64 @@ function dayNumber(date, calendar) {
   return gregorianJdn(date.year, date.month, date.day);
 }
 
+function dateFromGregorianJdn(jdn) {
+  const a = jdn + 32044;
+  const b = Math.floor(((4 * a) + 3) / 146097);
+  const c = a - Math.floor((146097 * b) / 4);
+  const d = Math.floor(((4 * c) + 3) / 1461);
+  const e = c - Math.floor((1461 * d) / 4);
+  const m = Math.floor(((5 * e) + 2) / 153);
+  return {
+    year: (100 * b) + d - 4800 + Math.floor(m / 10),
+    month: m + 3 - (12 * Math.floor(m / 10)),
+    day: e - Math.floor(((153 * m) + 2) / 5) + 1
+  };
+}
+
+function dateFromJulianJdn(jdn) {
+  const c = jdn + 32082;
+  const d = Math.floor(((4 * c) + 3) / 1461);
+  const e = c - Math.floor((1461 * d) / 4);
+  const m = Math.floor(((5 * e) + 2) / 153);
+  return {
+    year: d - 4800 + Math.floor(m / 10),
+    month: m + 3 - (12 * Math.floor(m / 10)),
+    day: e - Math.floor(((153 * m) + 2) / 5) + 1
+  };
+}
+
+function dateFromDayNumber(number, calendar) {
+  if (calendar === '360_day') {
+    const offset = number - 1;
+    const year = Math.floor(offset / 360);
+    const dayOfYear = offset - (year * 360);
+    return {
+      year,
+      month: Math.floor(dayOfYear / 30) + 1,
+      day: (dayOfYear % 30) + 1
+    };
+  }
+  if (calendar === '365_day' || calendar === '366_day') {
+    const yearDays = calendar === '365_day' ? 365 : 366;
+    const offset = number - 1;
+    const year = Math.floor(offset / yearDays);
+    let remaining = offset - (year * yearDays) + 1;
+    let month = 1;
+    while (remaining > daysInMonth(year, month, calendar)) {
+      remaining -= daysInMonth(year, month, calendar);
+      month += 1;
+    }
+    return { year, month, day: remaining };
+  }
+  if (calendar === 'julian') return dateFromJulianJdn(number);
+  if (calendar === 'standard' || calendar === 'gregorian') {
+    return number < gregorianJdn(1582, 10, 15)
+      ? dateFromJulianJdn(number)
+      : dateFromGregorianJdn(number);
+  }
+  return dateFromGregorianJdn(number);
+}
+
 function secondsOfDay(date) {
   return (date.hour * 3600) + (date.minute * 60) + date.second
     + (date.millisecond / 1000) - (date.timezoneOffsetMinutes * 60);
@@ -184,6 +242,33 @@ export function dateToCfNumber(value, units, calendar = 'standard') {
   const seconds = ((dayNumber(date, normalizedCalendar) - dayNumber(parsedUnits.origin, normalizedCalendar)) * SECONDS_PER_DAY)
     + secondsOfDay(date) - secondsOfDay(parsedUnits.origin);
   return seconds / UNIT_SECONDS[parsedUnits.unit];
+}
+
+/** Converts a numeric CF coordinate to an ISO-like WMS timestamp without Date. */
+export function cfNumberToIso(value, units, calendar = 'standard') {
+  const parsedUnits = parseCfUnits(units);
+  const normalizedCalendar = normalizeCalendar(calendar);
+  if (!parsedUnits || !normalizedCalendar || !Number.isFinite(value)
+    || !validateCfDate(parsedUnits.origin, normalizedCalendar)) return null;
+
+  const absoluteSeconds = (dayNumber(parsedUnits.origin, normalizedCalendar) * SECONDS_PER_DAY)
+    + secondsOfDay(parsedUnits.origin) + (value * UNIT_SECONDS[parsedUnits.unit]);
+  const day = Math.floor(absoluteSeconds / SECONDS_PER_DAY);
+  let seconds = absoluteSeconds - (day * SECONDS_PER_DAY);
+  // Floating point coordinates such as .5 can leave a tiny negative residue.
+  if (seconds < 0) seconds = 0;
+  const date = dateFromDayNumber(day, normalizedCalendar);
+  const hour = Math.floor(seconds / 3600);
+  seconds -= hour * 3600;
+  const minute = Math.floor(seconds / 60);
+  seconds -= minute * 60;
+  const wholeSecond = Math.floor(seconds);
+  const milliseconds = Math.round((seconds - wholeSecond) * 1000);
+  const year = date.year < 0
+    ? `-${String(Math.abs(date.year)).padStart(4, '0')}`
+    : String(date.year).padStart(4, '0');
+  const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(wholeSecond).padStart(2, '0')}`;
+  return `${year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}T${time}${milliseconds ? `.${String(milliseconds).padStart(3, '0')}` : ''}Z`;
 }
 
 function boundaryDate(value, boundary, calendar) {

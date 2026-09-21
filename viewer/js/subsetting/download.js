@@ -1,4 +1,5 @@
 import {
+  cfNumberToIso,
   dateRangeToCfBounds,
   describeCfDateRangeError,
   isUnsupportedCalendar,
@@ -34,8 +35,7 @@ export function createSubsetDownloadController({
   } = services;
   const {
     getSubsetTimeMode,
-    getSelectedTime,
-    parseSubsetDateValue
+    getSelectedTime
   } = time;
 
   const BACKGROUND_STATUS_TIMEOUT_MS = 120000;
@@ -71,13 +71,6 @@ export function createSubsetDownloadController({
       input.removeAttribute('aria-invalid');
     });
   });
-
-  function dateInputValue(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value || '').slice(0, 10);
-    const pad = (part) => String(part).padStart(2, '0');
-    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
-  }
 
   function flagTimeInputs(inputs, className = 'is-invalid') {
     const uniqueInputs = [...new Set(inputs.filter(Boolean))];
@@ -331,95 +324,16 @@ export function createSubsetDownloadController({
     }
 
     if (useFull) {
-      const rangeStart = state.selectedLayer?.time?.start || state.times?.[0] || '';
-      const rangeEnd = state.selectedLayer?.time?.end || state.times?.[state.times.length - 1] || '';
+      const rangeStart = state.times?.[0] || '';
+      const rangeEnd = state.times?.[state.times.length - 1] || '';
       return { timeMode, rangeStart, rangeEnd };
     }
 
-    const timeMetadata = {
-      ...(state.layerDetails?.metadata?.time || {}),
-      ...(state.currentDataset?.timeMetadata || {})
+    return {
+      timeMode,
+      rangeStart: String(subsetTimeStart.value || '').trim().replace(/\//g, '-'),
+      rangeEnd: String(subsetTimeEnd.value || '').trim().replace(/\//g, '-')
     };
-    // Keep range input calendar-neutral when the source exposes CF time
-    // metadata. The ncpartitioner path validates and converts these values.
-    if (timeMetadata.units) {
-      return {
-        timeMode,
-        rangeStart: String(subsetTimeStart.value || '').trim().replace(/\//g, '-'),
-        rangeEnd: String(subsetTimeEnd.value || '').trim().replace(/\//g, '-')
-      };
-    }
-
-    const startIso = parseSubsetDateValue(subsetTimeStart.value, 'start');
-    const endIso = parseSubsetDateValue(subsetTimeEnd.value, 'end');
-    const invalidInputs = [
-      ...(startIso === null ? [subsetTimeStart] : []),
-      ...(endIso === null ? [subsetTimeEnd] : [])
-    ];
-    if (invalidInputs.length) {
-      cancelInvalidTimeRange(
-        run,
-        'invalid-date-input',
-        'Please enter dates as YYYY, YYYY-MM, YYYY-MM-DD (or with / separators).',
-        invalidInputs
-      );
-    }
-    const rangeStart = startIso || '';
-    const rangeEnd = endIso || '';
-    if (rangeStart && rangeEnd && Date.parse(rangeStart) > Date.parse(rangeEnd)) {
-      cancelInvalidTimeRange(
-        run,
-        'invalid-date-range',
-        'Start date must be before end date.',
-        [subsetTimeStart, subsetTimeEnd]
-      );
-    }
-
-    const fullRangeStart = state.selectedLayer?.time?.start || state.times?.[0] || '';
-    const fullRangeEnd = state.selectedLayer?.time?.end || state.times?.[state.times.length - 1] || fullRangeStart;
-    const availableStartMs = Date.parse(fullRangeStart);
-    const availableEndMs = Date.parse(fullRangeEnd);
-    const requestedStartMs = Date.parse(rangeStart || fullRangeStart);
-    const requestedEndMs = Date.parse(rangeEnd || fullRangeEnd);
-
-    if (
-      Number.isFinite(availableStartMs)
-      && Number.isFinite(availableEndMs)
-      && Number.isFinite(requestedStartMs)
-      && Number.isFinite(requestedEndMs)
-    ) {
-      const availableLabel = `${dateInputValue(fullRangeStart)} to ${dateInputValue(fullRangeEnd)}`;
-      const availableStartDate = dateInputValue(fullRangeStart);
-      const availableEndDate = dateInputValue(fullRangeEnd);
-      const requestedStartDate = dateInputValue(rangeStart || fullRangeStart);
-      const requestedEndDate = dateInputValue(rangeEnd || fullRangeEnd);
-
-      const startOutOfRange = requestedStartDate < availableStartDate || requestedStartDate > availableEndDate;
-      const endOutOfRange = rangeEnd
-        ? (requestedEndDate < availableStartDate || requestedEndDate > availableEndDate)
-        : false;
-      if (startOutOfRange || endOutOfRange) {
-        const outOfRangeInputs = [
-          ...(startOutOfRange ? [subsetTimeStart] : []),
-          ...(endOutOfRange ? [subsetTimeEnd] : [])
-        ];
-        cancelInvalidTimeRange(
-          run,
-          'date-range-outside-dataset',
-          `Start and end dates must be within this dataset's available range (${availableLabel}). No download was started.`,
-          outOfRangeInputs
-        );
-      }
-    }
-
-    if (state.times.length) {
-      const [timeStartIndex, timeEndIndex] = indexController.findTimeIndexRange(state.times, rangeStart || fullRangeStart, rangeEnd || fullRangeEnd);
-      if (timeStartIndex === 0 && timeEndIndex === (state.times.length - 1)) {
-        return { timeMode: 'full', rangeStart: fullRangeStart, rangeEnd: fullRangeEnd };
-      }
-    }
-
-    return { timeMode, rangeStart, rangeEnd };
   }
 
   /**
@@ -658,6 +572,18 @@ export function createSubsetDownloadController({
             validationError?.message
               || 'Start date must be earlier than end date.',
             invalidInputs
+          );
+        }
+        const sourceLower = indexInfo.time.reduce((min, value) => Math.min(min, value), Number.POSITIVE_INFINITY);
+        const sourceUpper = indexInfo.time.reduce((max, value) => Math.max(max, value), Number.NEGATIVE_INFINITY);
+        if (cfBounds[0] < sourceLower || cfBounds[1] > sourceUpper) {
+          const availableStart = cfNumberToIso(sourceLower, timeMetadata.units, calendar)?.slice(0, 10) || 'the first timestep';
+          const availableEnd = cfNumberToIso(sourceUpper, timeMetadata.units, calendar)?.slice(0, 10) || 'the last timestep';
+          cancelInvalidTimeRange(
+            run,
+            'date-range-outside-dataset',
+            `Start and end dates must be within this dataset's available range (${availableStart} to ${availableEnd}). No download was started.`,
+            [subsetTimeStart, subsetTimeEnd]
           );
         }
         [timeStart, timeEnd] = indexController.findBoundedIndexRange(indexInfo.time, cfBounds[0], cfBounds[1]);
