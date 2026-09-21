@@ -97,7 +97,7 @@ export function createSubsetIndexController({
       // scalar coordinate from OpenDAP; ncpartitioner needs index 0.
       metadataTimeCount === 1 ? Promise.resolve([0]) : fetchOpendapDimensionValues(urlPath, 'time')
     ]);
-    const indexInfo = { lat, lon, timeCount: time.length };
+    const indexInfo = { lat, lon, time, timeCount: time.length };
     state.ncpIndexCache[key] = indexInfo;
     return indexInfo;
   }
