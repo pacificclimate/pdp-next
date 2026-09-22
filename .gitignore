@@ -7,6 +7,7 @@ __pycache__/
 */logs/*
 */ncpartitioner-output/*
 node_modules/
+portal-meta/display-labels.json
 portal-meta/bccaqv2_u5.json
 portal-meta/bccaqv2_u6.json
 portal-meta/canada_mosaic.json
