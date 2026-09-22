@@ -4,6 +4,7 @@ import proj4 from "proj4";
 import { ol } from "./core/openlayers.js";
 import {
   DEFAULT_VARIABLE_LABELS,
+  applyDisplayLabels,
   CRS_OPTIONS,
   DEFAULT_CANADA_BBOX_4326,
   buildDefaultPortalConfig,
@@ -458,23 +459,33 @@ wireEvents({
   viewerStateChanged: scheduleViewerUrlSync,
 });
 
-updateViewerTitle();
-populatePortalSelect();
-populateCrsSelect(CRS_OPTIONS);
-if (initialUrlState.crs && ol.proj.get(initialUrlState.crs)) {
-  setMapProjection(initialUrlState.crs);
-  crsSelect.value = getCurrentCrs();
+async function initializeViewer() {
+  try {
+    applyDisplayLabels(await fetchJson('/pdp-next/portal-meta/display-labels.json'));
+  } catch (err) {
+    console.warn('Could not load display-labels.json; using raw identifiers:', err);
+  }
+  portal.title = buildDefaultPortalConfig(portal.id).title;
+  updateViewerTitle();
+  populatePortalSelect();
+  populateCrsSelect(CRS_OPTIONS);
+  if (initialUrlState.crs && ol.proj.get(initialUrlState.crs)) {
+    setMapProjection(initialUrlState.crs);
+    crsSelect.value = getCurrentCrs();
+  }
+  if (initialUrlState.view) {
+    const [west, south, east, north] = initialUrlState.view;
+    fitMapToBbox4326({ west, south, east, north });
+  } else {
+    fitMapToBbox4326(DEFAULT_CANADA_BBOX_4326);
+  }
+  subsetSpatialMode.value = state.subset.spatialMode;
+  setSubsetDrawMode(state.subset.spatialMode);
+  updateSubsetTimeInputsEnabled();
+  await setActiveGroup(state.groupId);
 }
-if (initialUrlState.view) {
-  const [west, south, east, north] = initialUrlState.view;
-  fitMapToBbox4326({ west, south, east, north });
-} else {
-  fitMapToBbox4326(DEFAULT_CANADA_BBOX_4326);
-}
-subsetSpatialMode.value = state.subset.spatialMode;
-setSubsetDrawMode(state.subset.spatialMode);
-updateSubsetTimeInputsEnabled();
-setActiveGroup(state.groupId).catch((err) => {
+
+initializeViewer().catch((err) => {
   console.error(err);
   setStatus(`Error: ${err.message}`, true);
 });

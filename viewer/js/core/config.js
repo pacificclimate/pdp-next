@@ -1,45 +1,42 @@
 export const KNOWN_PORTALS = [
   // { id: 'gridded_daily', title: 'Daily Gridded Meteorological Datasets', mount: 'gridded_daily', defaultCrs: 'EPSG:4326' },
-  { id: "prism", title: "BC PRISM", mount: "prism", defaultCrs: "EPSG:3005" },
+  {
+    id: "prism",
+    mount: "prism",
+    defaultCrs: "EPSG:3005",
+  },
   {
     id: "canada_mosaic",
-    title: "Canada Mosaic",
     mount: "canada_mosaic",
     defaultCrs: "EPSG:3978",
   },
   {
     id: "vicgl",
-    title: "Gridded Hydrologic Model Output (VICGL)",
     mount: "vicgl",
     defaultCrs: "EPSG:3005",
   },
   {
     id: "bccaqv2_u5",
-    title: "CanDCS-U5 (BCCAQv2 CMIP5)",
     mount: "bccaqv2_u5",
     defaultCrs: "EPSG:4326",
   },
   {
     id: "bccaqv2_u6",
-    title: "CanDCS-U6 (BCCAQv2 CMIP6)",
     mount: "bccaqv2_u6",
     defaultCrs: "EPSG:4326",
   },
   {
     id: "mbcn",
-    title: "Canadian Downscaled Climate Scenarios (MBCn)",
     mount: "mbcn",
     defaultCrs: "EPSG:3978",
   },
   {
     id: "canesm5_u6",
-    title: "CanESM5 (Univariate)",
     mount: "bccaqv2/canesm5",
     defaultCrs: "EPSG:4326",
   },
   {
     id: "canesm5_m6",
-    title: "CanESM5 (Multivariate)",
     mount: "mbcn/canesm5_10",
     defaultCrs: "EPSG:3978",
   },
@@ -66,33 +63,40 @@ if (!ENABLED_PORTALS.length) {
   throw new Error("ENABLED_PORTALS does not contain a recognized portal ID");
 }
 
-export const PALETTE_LABELS = {
-  default: "Default",
-  "seq-Blues": "Sequential Blues",
-  "seq-BuGn": "Sequential Blue-Green",
-  "seq-GnBu": "Sequential Green-Blue",
-  "seq-Greens": "Sequential Greens",
-  "seq-YlOrRd": "Sequential Yellow-Orange-Red",
-  "seq-OrRd": "Sequential Orange-Red",
-  "seq-Reds": "Sequential Reds",
-  "seq-Heat": "Sequential Heat",
-  "seq-viridis": "Viridis (sequential)",
-  "psu-viridis": "PSU Viridis",
-  "div-Spectral": "Diverging Spectral",
-  "div-RdBu": "Diverging Red \u2192 Blue",
-  "div-RdBu-inv": "Diverging Blue \u2192 Red",
-};
+export const FALLBACK_PALETTES = [
+  "default", "seq-Blues", "seq-BuGn", "seq-GnBu", "seq-Greens", "seq-YlOrRd",
+  "seq-OrRd", "seq-Reds", "seq-Heat", "seq-viridis", "psu-viridis", "div-Spectral",
+  "div-RdBu", "div-RdBu-inv",
+];
 
-export const FALLBACK_PALETTES = Object.keys(PALETTE_LABELS);
+export const PALETTE_LABELS = {};
 
-export const DEFAULT_VARIABLE_LABELS = {
-  pr: "Total Precipitation",
-  tas: "Mean Temperature",
-  tasmax: "Daily Maximum Temperature",
-  tasmin: "Daily Minimum Temperature",
-  tmax: "Maximum Temperature",
-  tmin: "Minimum Temperature",
-};
+export const DEFAULT_VARIABLE_LABELS = {};
+
+let displayLabels = null;
+
+export function applyDisplayLabels(labels) {
+  if (!labels || typeof labels !== "object") {
+    throw new Error("Invalid display-labels.json");
+  }
+  displayLabels = labels;
+  Object.assign(DEFAULT_VARIABLE_LABELS, labels.viewer?.defaultVariableLabels || {});
+  Object.assign(PALETTE_LABELS, labels.viewer?.paletteLabels || {});
+}
+
+export function portalTitle(portalId) {
+  const id = String(portalId || "");
+  return displayLabels?.viewer?.portalTitles?.[id] || id;
+}
+
+export function menuDisplayLabel(portalId, field, key) {
+  const value = String(key || "");
+  const portal = displayLabels?.portals?.[portalId] || {};
+  return portal[field]?.[value]
+    || (field === "frequency" ? displayLabels?.common?.frequency?.[value] : null)
+    || (value === "unknown" ? displayLabels?.common?.unknown : null)
+    || value;
+}
 
 export const CRS_OPTIONS = [
   { code: "CRS:84", label: "CRS:84" },
@@ -131,7 +135,7 @@ export function buildDefaultPortalConfig(portalId) {
 
   return {
     id,
-    title: known?.title || id,
+    title: portalTitle(id),
     mount: known?.mount || id,
     threddsRoot: "/pdp-next/thredds/",
     defaultCrs: known?.defaultCrs || "EPSG:3857",

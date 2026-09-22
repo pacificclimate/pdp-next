@@ -4,62 +4,6 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from .metadata import ensure_derived_fields, normalize_run_label, normalize_scenario_label
 
-
-PRISM_PERIOD_LABELS: Dict[Tuple[int, int], str] = {
-    (1950, 2007): "Averaged months, 1950-2007",
-    (1971, 2000): "Climatological averages 1970-2000",
-    (1981, 2010): "Climatological averages 1981-2010",
-    (1991, 2020): "Climatological averages 1991-2020",
-}
-
-PRISM_VARIABLE_LABELS: Dict[str, str] = {
-    "tasmax": "Maximum Temperature",
-    "tmax": "Maximum Temperature",
-    "tasmin": "Minimum Temperature",
-    "tmin": "Minimum Temperature",
-    "pr": "Total Precipitation",
-    "ppt": "Total Precipitation",
-}
-
-CANADA_MOSAIC_VARIABLE_LABELS: Dict[str, str] = {
-    "pr": "Total Precipitation",
-    "tmax": "Maximum Temperature",
-    "tmin": "Minimum Temperature",
-    "tas": "Mean Temperature",
-    "tasmean": "Mean Temperature",
-}
-
-GRIDDED_DAILY_SOURCE_BY_MODEL: Dict[str, str] = {
-    "ANUSPLIN_CDA_v2012.1": "NRCANmet 2012",
-    "TPS_NWNA_v1": "PNWNAmet 2015",
-    "PCIC_BLEND_v1": "PCIC Blend 2021",
-}
-
-GRIDDED_DAILY_VARIABLE_LABELS: Dict[str, str] = {
-    "tasmax": "Maximum Temperature",
-    "tmax": "Maximum Temperature",
-    "tasmin": "Minimum Temperature",
-    "tmin": "Minimum Temperature",
-    "pr": "Precipitation",
-    "wind": "Wind",
-}
-
-VICGL_VARIABLE_LABELS: Dict[str, str] = {
-    "BASEFLOW": "Baseflow",
-    "EVAP": "Evapotranspiration",
-    "GLAC_AREA": "Glacier Area",
-    "GLAC_MBAL": "Glacier Mass Balance",
-    "GLAC_OUTFLOW": "Glacier Outflow",
-    "PET_NATVEG": "Potential Evapotranspiration",
-    "PREC": "Precipitation",
-    "RAINF": "Rainfall",
-    "SNOW_MELT": "Snow Melt",
-    "SWE": "Snow Water Equivalent",
-    "RUNOFF": "Surface Runoff",
-    "SOIL_MOIST_TOT": "Total Column Soil Moisture",
-    "TRANSP_VEG": "Transpiration",
-}
-
 PCIC12_MODELS: Set[str] = {
     "BCC-CSM2-MR",
     "NorESM2-LM",
@@ -77,14 +21,18 @@ PCIC12_MODELS: Set[str] = {
 
 
 MenuBuilder = Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, str]]
+UNKNOWN = "unknown"
+
+
+def menu_schema(portal_id: str, order: List[str]) -> Dict[str, Any]:
+    return {"order": order}
 
 
 def prism_period_label(start_year: Optional[int], end_year: Optional[int]) -> str:
     if start_year is None or end_year is None:
-        return "Unknown"
-    if (start_year, end_year) in PRISM_PERIOD_LABELS:
-        return PRISM_PERIOD_LABELS[(start_year, end_year)]
-    return f"{start_year}-{end_year}"
+        return UNKNOWN
+    period = f"{start_year}-{end_year}"
+    return period
 
 
 def prism_frequency_label(metadata: Dict[str, Any]) -> str:
@@ -92,25 +40,25 @@ def prism_frequency_label(metadata: Dict[str, Any]) -> str:
     derived = metadata.get("derived", {})
     frequency = str(derived.get("frequency") or "").lower()
     if any(token in frequency for token in ["mclim", "mon", "month"]):
-        return "Monthly"
+        return "monthly"
     if any(token in frequency for token in ["aclim", "ann", "year", "yr"]):
-        return "Annual"
+        return "annual"
 
     time_count = int(derived.get("timeCount", 0) or 0)
     if time_count == 12:
-        return "Monthly"
+        return "monthly"
     if time_count == 1:
-        return "Annual"
+        return "annual"
     if time_count > 12:
-        return "Monthly"
-    return "Unknown"
+        return "monthly"
+    return UNKNOWN
 
 
 def prism_menu_builder(metadata: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, str]:
     metadata = ensure_derived_fields(metadata)
     derived = metadata.get("derived", {})
     variable_code = str(derived.get("variableCode") or "").lower()
-    variable_label = PRISM_VARIABLE_LABELS.get(variable_code, variable_code or "Unknown")
+    variable_label = variable_code or UNKNOWN
     return {
         "period": prism_period_label(
             derived.get("climoStartYear"), derived.get("climoEndYear")
@@ -127,18 +75,18 @@ def canada_mosaic_menu_builder(
     derived = metadata.get("derived", {})
     time_count = int(derived.get("timeCount", 0) or 0)
     if time_count == 12:
-        frequency = "Monthly"
+        frequency = "monthly"
     elif time_count == 4:
-        frequency = "Seasonal"
+        frequency = "seasonal"
     elif time_count == 1:
-        frequency = "Annual"
+        frequency = "annual"
     else:
-        frequency = "Unknown"
+        frequency = UNKNOWN
 
     variable_code = str(derived.get("variableCode") or "").lower()
-    variable = CANADA_MOSAIC_VARIABLE_LABELS.get(variable_code, variable_code or "Unknown")
+    variable = variable_code or UNKNOWN
     return {
-        "period": "Climatological averages 1981-2010",
+        "period": "1981-2010",
         "frequency": frequency,
         "variable": variable,
     }
@@ -150,9 +98,9 @@ def gridded_daily_menu_builder(
     metadata = ensure_derived_fields(metadata)
     derived = metadata.get("derived", {})
     model_id = str(derived.get("model") or "").strip()
-    source = GRIDDED_DAILY_SOURCE_BY_MODEL.get(model_id, model_id or "Unknown")
+    source = model_id or UNKNOWN
     variable_code = str(derived.get("variableCode") or "").lower()
-    variable = GRIDDED_DAILY_VARIABLE_LABELS.get(variable_code, variable_code or "Unknown")
+    variable = variable_code or UNKNOWN
     return {"source": source, "variable": variable}
 
 
@@ -162,7 +110,7 @@ def vicgl_menu_builder(metadata: Dict[str, Any], config: Dict[str, Any]) -> Dict
     global_attrs = metadata.get("global", {})
 
     variable_code = str(derived.get("variableCode") or "").upper()
-    variable = VICGL_VARIABLE_LABELS.get(variable_code, variable_code or "Unknown")
+    variable = variable_code or UNKNOWN
 
     scenario_raw = str(derived.get("scenarioRaw") or "").lower()
     forcing_type = str(derived.get("forcingType") or "").lower()
@@ -172,15 +120,15 @@ def vicgl_menu_builder(metadata: Dict[str, Any], config: Dict[str, Any]) -> Dict
 
     if forcing_type == "gridded observations":
         scenario = str(global_attrs.get("experiment_id") or "historical")
-        model = "PNWNAmet base" if target_dataset == "PNWNAmet" else (model_id or "Unknown")
+        model = target_dataset or model_id or UNKNOWN
         return {"scenario": scenario, "model": model, "variable": variable}
 
     scenario = normalize_scenario_label(scenario_raw, "legacy")
     run = normalize_run_label(run_raw)
-    model = model_id or "Unknown"
-    if run != "Unknown":
+    model = model_id or UNKNOWN
+    if run != UNKNOWN:
         model = f"{model} {run}"
-    return {"scenario": scenario or "Unknown", "model": model, "variable": variable}
+    return {"scenario": scenario or UNKNOWN, "model": model, "variable": variable}
 
 
 def climate_projection_menu_builder(
@@ -195,9 +143,9 @@ def climate_projection_menu_builder(
         str(derived.get("scenarioRaw") or "").lower(),
         scenario_style,
     )
-    model = str(derived.get("model") or "").strip() or "Unknown"
+    model = str(derived.get("model") or "").strip() or UNKNOWN
     run = normalize_run_label(str(derived.get("runRaw") or ""), preserve_forcing)
-    variable = str(derived.get("variableCode") or "").lower() or "unknown"
+    variable = str(derived.get("variableCode") or "").lower() or UNKNOWN
 
     fields = {
         "scenario": scenario,
@@ -206,137 +154,59 @@ def climate_projection_menu_builder(
         "variable": variable,
     }
     if config.get("addPcic12ScenarioSuffix") and model in PCIC12_MODELS and scenario in {
-        "Historical, SSP1-2.6",
-        "Historical, SSP2-4.5",
-        "Historical, SSP3-7.0",
-        "Historical, SSP5-8.5",
+        "historical,ssp126", "historical,ssp245", "historical,ssp370", "historical,ssp585",
     }:
-        fields["scenarioPcic12"] = f"{scenario} (PCIC12)"
+        fields["scenarioPcic12"] = f"{scenario}__pcic12"
     return fields
 
 
 PORTAL_CONFIGS: Dict[str, Dict[str, Any]] = {
     "prism": {
-        "menuSchema": {
-            "order": ["period", "frequency", "variable"],
-            "labels": {
-                "period": "Period",
-                "frequency": "Frequency",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("prism", ["period", "frequency", "variable"]),
         "menuBuilder": prism_menu_builder,
     },
     "canada_mosaic": {
-        "menuSchema": {
-            "order": ["period", "frequency", "variable"],
-            "labels": {
-                "period": "Period",
-                "frequency": "Frequency",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("canada_mosaic", ["period", "frequency", "variable"]),
         "menuBuilder": canada_mosaic_menu_builder,
     },
     "gridded_daily": {
-        "menuSchema": {
-            "order": ["source", "variable"],
-            "labels": {
-                "source": "Dataset",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("gridded_daily", ["source", "variable"]),
         "menuBuilder": gridded_daily_menu_builder,
     },
     "vicgl": {
-        "menuSchema": {
-            "order": ["scenario", "model", "variable"],
-            "labels": {
-                "scenario": "Scenario",
-                "model": "Model",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("vicgl", ["scenario", "model", "variable"]),
         "menuBuilder": vicgl_menu_builder,
     },
     "bccaqv2": {
-        "menuSchema": {
-            "order": ["scenario", "model", "run", "variable"],
-            "labels": {
-                "scenario": "Scenario",
-                "model": "Model",
-                "run": "Run",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("bccaqv2", ["scenario", "model", "run", "variable"]),
         "menuBuilder": climate_projection_menu_builder,
         "scenarioStyle": "legacy",
     },
     "bccaqv2_u5": {
-        "menuSchema": {
-            "order": ["scenario", "model", "run", "variable"],
-            "labels": {
-                "scenario": "Scenario",
-                "model": "Model",
-                "run": "Run",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("bccaqv2_u5", ["scenario", "model", "run", "variable"]),
         "menuBuilder": climate_projection_menu_builder,
         "scenarioStyle": "legacy",
     },
     "bccaqv2_u6": {
-        "menuSchema": {
-            "order": ["scenario", "model", "run", "variable"],
-            "labels": {
-                "scenario": "Scenario",
-                "model": "Model",
-                "run": "Run",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("bccaqv2_u6", ["scenario", "model", "run", "variable"]),
         "menuBuilder": climate_projection_menu_builder,
         "scenarioStyle": "ssp_u6",
         "addPcic12ScenarioSuffix": True,
     },
     "canesm5_u6": {
-        "menuSchema": {
-            "order": ["scenario", "model", "run", "variable"],
-            "labels": {
-                "scenario": "Scenario",
-                "model": "Model",
-                "run": "Run",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("canesm5_u6", ["scenario", "model", "run", "variable"]),
         "menuBuilder": climate_projection_menu_builder,
         "scenarioStyle": "ssp_u6",
         "preserveRunForcing": True,
     },
     "canesm5_m6": {
-        "menuSchema": {
-            "order": ["scenario", "model", "run", "variable"],
-            "labels": {
-                "scenario": "Scenario",
-                "model": "Model",
-                "run": "Run",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("canesm5_m6", ["scenario", "model", "run", "variable"]),
         "menuBuilder": climate_projection_menu_builder,
         "scenarioStyle": "ssp_u6",
         "preserveRunForcing": True,
     },
     "mbcn": {
-        "menuSchema": {
-            "order": ["scenario", "model", "run", "variable"],
-            "labels": {
-                "scenario": "Scenario",
-                "model": "Model",
-                "run": "Run",
-                "variable": "Variable",
-            },
-        },
+        "menuSchema": menu_schema("mbcn", ["scenario", "model", "run", "variable"]),
         "menuBuilder": climate_projection_menu_builder,
         "scenarioStyle": "ssp_u6",
     },
@@ -344,9 +214,9 @@ PORTAL_CONFIGS: Dict[str, Dict[str, Any]] = {
 
 
 DEFAULT_PORTAL_CONFIG: Dict[str, Any] = {
-    "menuSchema": {"order": ["variable"], "labels": {"variable": "Variable"}},
+    "menuSchema": {"order": ["variable"]},
     "menuBuilder": lambda metadata, config: {
-        "variable": str(metadata.get("derived", {}).get("variableCode") or "Unknown")
+        "variable": str(metadata.get("derived", {}).get("variableCode") or UNKNOWN)
     },
 }
 
@@ -368,11 +238,10 @@ def build_menu_tree(
     for basename, fields in file_items:
         current: Dict[str, Any] = tree
         for key in order[:-1]:
-            label = str(fields.get(key) or "Unknown")
+            label = str(fields.get(key) or UNKNOWN)
             if label not in current:
                 current[label] = {}
             current = current[label]
-        leaf = str(fields.get(order[-1]) or "Unknown")
+        leaf = str(fields.get(order[-1]) or UNKNOWN)
         current.setdefault(leaf, []).append(basename)
     return tree
-
