@@ -171,7 +171,7 @@ edited directly.
 Publish label-only changes from that source beside the metadata instead:
 
 ```bash
-cp config/display-labels.json portal-meta/display-labels.json
+install -m 0644 config/display-labels.json /portal-meta/display-labels.json
 ```
 
 They take effect after the viewer is refreshed; they do not require metadata or

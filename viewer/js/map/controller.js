@@ -1,4 +1,4 @@
-import { WMS_VERSION, PALETTE_LABELS } from "../core/config.js";
+import { WMS_VERSION, paletteLabel } from "../core/config.js";
 
 const PRECIP_VARIABLE_NAMES = new Set([
   "pr",
@@ -220,7 +220,7 @@ export function createMapController({
   }
 
   function getPaletteDisplayName(name) {
-    return PALETTE_LABELS[name] || name;
+    return paletteLabel(name);
   }
 
   function populatePaletteSelect(palettes, defaultPalette) {

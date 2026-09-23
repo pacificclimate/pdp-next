@@ -1,4 +1,33 @@
 import { defineConfig, loadEnv } from 'vite';
+import { readFile } from 'node:fs/promises';
+
+function localDisplayLabelsPlugin(base) {
+  const labelsPath = new URL('./config/display-labels.json', import.meta.url);
+  const labelsUrl = `${base}portal-meta/display-labels.json`;
+  const serveLabels = async (request, response, next) => {
+    if (request.url?.split('?')[0] !== labelsUrl) return next();
+    try {
+      const labels = await readFile(labelsPath, 'utf8');
+      response.writeHead(200, {
+        'cache-control': 'no-store',
+        'content-type': 'application/json; charset=utf-8',
+      });
+      response.end(request.method === 'HEAD' ? undefined : labels);
+    } catch (error) {
+      response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
+      response.end(`Could not load local display labels: ${error.message}`);
+    }
+  };
+  return {
+    name: 'local-display-labels',
+    configureServer(server) {
+      server.middlewares.use(serveLabels);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(serveLabels);
+    },
+  };
+}
 
 function runtimeConfigSource(environment) {
   return `window.PDP_RUNTIME_CONFIG = ${JSON.stringify({
@@ -63,7 +92,10 @@ export default defineConfig(({ mode }) => {
   return {
     root: 'viewer',
     base,
-    plugins: [runtimeConfigPlugin(base, runtimeConfigSource(environment))],
+    plugins: [
+      runtimeConfigPlugin(base, runtimeConfigSource(environment)),
+      localDisplayLabelsPlugin(base),
+    ],
     server: {
       host,
       port,

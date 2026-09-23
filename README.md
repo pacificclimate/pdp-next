@@ -59,7 +59,7 @@ The viewer loads a published copy from `portal-meta/display-labels.json`; the
 Git-tracked file above is its source of truth. Publish it with:
 
 ```bash
-cp config/display-labels.json /path/to/portal-meta/display-labels.json
+install -m 0644 config/display-labels.json /path/to/portal-meta/display-labels.json
 ```
 
 Changing a display label does not change the underlying portal ID, dataset
@@ -80,6 +80,23 @@ rather than text.
 
 Label-only changes need neither a viewer rebuild nor portal metadata
 regeneration. Users receive the new labels after refreshing the viewer.
+
+For local development, `npm run dev` serves `config/display-labels.json` at
+the same sidecar URL, so no copy to a development metadata directory is needed.
+
+### Inspecting label keys
+
+Append `labelKeys=1` to a viewer URL to replace each sidecar-backed label with
+its `display-labels.json` lookup key. For example:
+
+```text
+http://127.0.0.1:4173/pdp-next/?portal=canada_mosaic&labelKeys=1
+```
+
+Use `&labelKeys=1` when the URL already has parameters. This works locally and
+in a deployment running the updated viewer. It covers portal titles, palettes,
+default variable labels, and generated menu labels; ordinary UI copy such as
+section headings and buttons is not yet part of the label registry.
 
 ### Regenerating portal metadata
 
@@ -243,7 +260,7 @@ For a portal named `example`, the label registry needs entries like:
 Publish the updated label sidecar to the same directory served by the viewer:
 
 ```bash
-cp config/display-labels.json /path/to/portal-meta/display-labels.json
+install -m 0644 config/display-labels.json /path/to/portal-meta/display-labels.json
 ```
 
 If the portal needs custom menu labels or grouping, add a focused menu builder in
