@@ -17,7 +17,9 @@ This file describes the menu schemas currently generated into `portal-meta/<port
 
 ## Notes
 
-- Menu labels and portal-specific derivation live in `portal_meta_builder/portals.py`.
+- Portal-specific menu-key derivation lives in `portal_meta_builder/portals.py`.
+- Display labels live in Git-tracked `config/display-labels.json` and are copied
+  beside portal metadata as `display-labels.json`.
 - Normalized metadata used by menu builders is created in `portal_meta_builder/metadata.py` under `metadata.derived`.
 - `bccaqv2_u6` also emits alternate scenario labels with a `(PCIC12)` suffix for the PCIC12 subset.
 - `vicgl` uses metadata fields such as forcing type, experiment, model, and dataset identifiers to distinguish historical baseline output from downscaled GCM runs.

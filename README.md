@@ -4,12 +4,13 @@ THREDDS-backed, database-free replacement for the Pacific Climate Data Portal (P
 
 ## Layout
 
-- `scripts/`: operational entrypoints
-- `portal_meta_builder/`: shared metadata parsing and menu-building code
-- `portal-prep/portal-file-patterns/`: source-of-truth file patterns for each portal
-- `portal-meta/`: generated per-portal metadata JSON consumed by the viewer
-- `viewer/`: current frontend/viewer assets
-- `thredds/`: local THREDDS config and support files
+* `scripts/`: operational entrypoints
+* `config/`: shared steward-editable display labels
+* `portal_meta_builder/`: shared metadata parsing and menu-building code
+* `portal-prep/portal-file-patterns/`: source-of-truth file patterns for each portal
+* `portal-meta/`: generated per-portal metadata JSON consumed by the viewer
+* `viewer/`: current frontend/viewer assets
+* `thredds/`: local THREDDS config and support files
 
 ## Production Files
 
@@ -38,11 +39,91 @@ metadata output directory.
 3. Build the ordered min/max CSV, scanning only files missing from the export.
 4. Build `portal-meta/<portal>.json` from NetCDF metadata and normalized derived fields.
 
-The metadata builder reads NetCDF metadata, normalizes common fields into `metadata.derived`, and applies per-portal
-menu rules from `portal_meta_builder/portals.py`.
+The metadata builder reads NetCDF metadata, normalizes common fields into
+`metadata.derived`, and applies per-portal menu rules from
+`portal_meta_builder/portals.py`.
 
 See [`portal-prep/README.md`](portal-prep/README.md) for the complete,
 copy-pasteable metadata preparation workflow.
+
+## Customizing Display Labels
+
+All steward-editable portal, dataset-menu, default-variable, and palette
+display labels have one source of truth:
+
+```text
+config/display-labels.json
+```
+
+The viewer loads a published copy from `portal-meta/display-labels.json`; the
+Git-tracked file above is its source of truth. Publish it with:
+
+```bash
+install -m 0644 config/display-labels.json /path/to/portal-meta/display-labels.json
+```
+
+Changing a display label does not change the underlying portal ID, dataset
+identifier, filename, or THREDDS path.
+
+### Label registry
+
+The registry contains viewer portal titles, palette labels, and default variable
+labels, plus per-portal menu headings and overrides for datasets/sources,
+models, variables, scenarios, runs, periods, and frequencies. Values are keyed
+by their stable metadata value or portal ID; change the value on the right,
+never the key on the left.
+
+The viewer fetches the published sidecar at startup. `portal_meta_builder/portals.py`
+and `portal_meta_builder/metadata.py` retain the code that derives stable menu
+keys. Menu order and grouping rules remain code because they define behaviour
+rather than text.
+
+Label-only changes need neither a viewer rebuild nor portal metadata
+regeneration. Users receive the new labels after refreshing the viewer.
+
+For local development, `npm run dev` serves `config/display-labels.json` at
+the same sidecar URL, so no copy to a development metadata directory is needed.
+
+### Inspecting label keys
+
+Append `labelKeys=1` to a viewer URL to replace each sidecar-backed label with
+its `display-labels.json` lookup key. For example:
+
+```text
+http://127.0.0.1:4173/pdp-next/?portal=canada_mosaic&labelKeys=1
+```
+
+Use `&labelKeys=1` when the URL already has parameters. This works locally and
+in a deployment running the updated viewer. It covers portal titles, palettes,
+default variable labels, and generated menu labels; ordinary UI copy such as
+section headings and buttons is not yet part of the label registry.
+
+### Regenerating portal metadata
+
+Portal-specific menu configuration is compiled into:
+
+```text
+portal-meta/<portal>.json
+```
+
+Do not edit these JSON files directly. They are generated output and will be
+overwritten by subsequent metadata builds.
+
+After changing menu grouping or stable menu-key derivation, regenerate the
+affected portal:
+
+```bash
+python3 scripts/update-portal-meta.py --portal <portal>
+```
+
+For example:
+
+```bash
+python3 scripts/update-portal-meta.py --portal prism
+```
+
+See [`portal-prep/README.md`](portal-prep/README.md) for the full metadata
+preparation and rebuild workflow.
 
 ## Scripts
 
@@ -55,9 +136,9 @@ ncpartitioner requests to Beehive:
 npm run dev
 ```
 
-Then open <http://127.0.0.1:4173/pdp-next/>. Vite serves the frontend from
+Then open http://127.0.0.1:4173/pdp-next/. Vite serves the frontend from
 `viewer/` and proxies `/pdp-next/portal-meta/`,
-`/pdp-next/thredds/`, and `/pdp-next/ncpartitioner/` are fetched through the
+`/pdp-next/thredds/`, and `/pdp-next/ncpartitioner/` through the
 same-origin development proxy.
 
 The defaults can be overridden when needed:
@@ -156,7 +237,32 @@ Writes `portal-meta/<portal>.json`.
    to `portal-prep/min_max_query.sql` and regenerate `portal-prep/db-export.csv`.
 5. Run `scripts/calculate-portal-minmax.py --portal <portal>`.
 6. Run `scripts/update-portal-meta.py --portal <portal>`.
+7. Add the portal's operational definition to `viewer/js/core/config.js`.
+8. Add its title, headings, and any desired value overrides to
+   `config/display-labels.json`, then publish the sidecar.
+
+For a portal named `example`, the label registry needs entries like:
+
+```json
+{
+  "viewer": {
+    "portalTitles": { "example": "Example Climate Data" }
+  },
+  "portals": {
+    "example": {
+      "headings": { "variable": "Variable" },
+      "variable": { "tas": "Mean Temperature" }
+    }
+  }
+}
+```
+
+Publish the updated label sidecar to the same directory served by the viewer:
+
+```bash
+install -m 0644 config/display-labels.json /path/to/portal-meta/display-labels.json
+```
 
 If the portal needs custom menu labels or grouping, add a focused menu builder in
-`portal_meta_builder/portals.py`. If it needs additional normalized metadata, add that in
-`portal_meta_builder/metadata.py`.
+`portal_meta_builder/portals.py`. If it needs additional normalized metadata,
+add that in `portal_meta_builder/metadata.py`.
