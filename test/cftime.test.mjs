@@ -92,6 +92,18 @@ test('converts standard-calendar coordinates through the same CF path', () => {
   );
 });
 
+test('accepts source endpoint dates when coordinates occur at noon', () => {
+  const units = 'days since 1950-01-01';
+  const first = cfNumberToIso(0.5, units, 'standard').slice(0, 10);
+  const lastCoordinate = dateToCfNumber('2100-12-31', units, 'standard') + 0.5;
+  const last = cfNumberToIso(lastCoordinate, units, 'standard').slice(0, 10);
+  const available = dateRangeToCfBounds(first, last, units, 'standard');
+  const requested = dateRangeToCfBounds('1950-01-01', '2100-12-31', units, 'standard');
+
+  assert.deepEqual([first, last], ['1950-01-01', '2100-12-31']);
+  assert.deepEqual(requested, available);
+});
+
 test('selects the same 360_day dates from descending coordinates', () => {
   const units = 'days since 1950-01-01';
   const ascending = Array.from({ length: 360 }, (_, index) => 11160.5 + index);

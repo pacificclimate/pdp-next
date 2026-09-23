@@ -576,13 +576,19 @@ export function createSubsetDownloadController({
         }
         const sourceLower = indexInfo.time.reduce((min, value) => Math.min(min, value), Number.POSITIVE_INFINITY);
         const sourceUpper = indexInfo.time.reduce((max, value) => Math.max(max, value), Number.NEGATIVE_INFINITY);
-        if (cfBounds[0] < sourceLower || cfBounds[1] > sourceUpper) {
-          const availableStart = cfNumberToIso(sourceLower, timeMetadata.units, calendar)?.slice(0, 10) || 'the first timestep';
-          const availableEnd = cfNumberToIso(sourceUpper, timeMetadata.units, calendar)?.slice(0, 10) || 'the last timestep';
+        const availableStart = cfNumberToIso(sourceLower, timeMetadata.units, calendar)?.slice(0, 10);
+        const availableEnd = cfNumberToIso(sourceUpper, timeMetadata.units, calendar)?.slice(0, 10);
+        const availableBounds = availableStart && availableEnd
+          ? dateRangeToCfBounds(availableStart, availableEnd, timeMetadata.units, calendar)
+          : null;
+        // Coordinates commonly occur at noon (.5 days). Compare inclusive
+        // calendar-day bounds, rather than a midnight request directly to
+        // that coordinate, so the first and last available dates are valid.
+        if (!availableBounds || cfBounds[0] < availableBounds[0] || cfBounds[1] > availableBounds[1]) {
           cancelInvalidTimeRange(
             run,
             'date-range-outside-dataset',
-            `Start and end dates must be within this dataset's available range (${availableStart} to ${availableEnd}). No download was started.`,
+            `Start and end dates must be within this dataset's available range (${availableStart || 'the first timestep'} to ${availableEnd || 'the last timestep'}). No download was started.`,
             [subsetTimeStart, subsetTimeEnd]
           );
         }
