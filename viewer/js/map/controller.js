@@ -10,6 +10,25 @@ const PRECIP_VARIABLE_NAMES = new Set([
 ]);
 const ANNUAL_FREQUENCY_HINT_RE = /\b(year|yearly|annual|ann|yr)\b/;
 
+export function reprojectViewState(olRef, sourceCrs, targetCrs, sourceCenter, sourceResolution) {
+  if (!sourceCenter?.every(Number.isFinite) || !Number.isFinite(sourceResolution) || sourceResolution <= 0) {
+    return null;
+  }
+  const geographicCenter = olRef.proj.transform(sourceCenter, sourceCrs, "EPSG:4326");
+  if (!geographicCenter.every(Number.isFinite)) return null;
+  const metersPerPixel = olRef.proj.getPointResolution(
+    sourceCrs,
+    sourceResolution,
+    sourceCenter,
+    "m",
+  );
+  const center = olRef.proj.transform(geographicCenter, "EPSG:4326", targetCrs);
+  const metersPerTargetUnit = olRef.proj.getPointResolution(targetCrs, 1, center, "m");
+  if (![...center, metersPerPixel, metersPerTargetUnit].every(Number.isFinite)
+    || metersPerPixel <= 0 || metersPerTargetUnit <= 0) return null;
+  return { center, resolution: metersPerPixel / metersPerTargetUnit };
+}
+
 export function createMapController({
   portal,
   state,
@@ -158,10 +177,18 @@ export function createMapController({
     if (!olRef.proj.get(code)) return false;
     if (code === currentCrs) return true;
     const previousCrs = currentCrs;
-    const previousViewExtent = captureViewExtent4326(previousCrs);
+    const previousCenter = mapView.getCenter();
+    const previousResolution = mapView.getResolution();
+    const projectedView = reprojectViewState(
+      olRef,
+      previousCrs,
+      code,
+      previousCenter,
+      previousResolution,
+    );
     reprojectSubsetFeatures(previousCrs, code);
     currentCrs = code;
-    const nextCenter = olRef.proj.transform(
+    const nextCenter = projectedView?.center || olRef.proj.transform(
       DEFAULT_VIEW_CENTER_LONLAT,
       "EPSG:4326",
       currentCrs,
@@ -169,23 +196,11 @@ export function createMapController({
     mapView = new olRef.View({
       projection: currentCrs,
       center: nextCenter,
-      zoom: 3,
+      ...(projectedView
+        ? { resolution: projectedView.resolution }
+        : { zoom: 3 }),
     });
     map.setView(mapView);
-    if (previousViewExtent) {
-      const projectedViewExtent = olRef.proj.transformExtent(
-        previousViewExtent,
-        "EPSG:4326",
-        currentCrs,
-        8,
-      );
-      if (validExtent(projectedViewExtent)) {
-        mapView.fit(projectedViewExtent, {
-          padding: [0, 0, 0, 0],
-          duration: 0,
-        });
-      }
-    }
     return true;
   }
 
@@ -586,6 +601,43 @@ export function createMapController({
     return true;
   }
 
+  function fitMapToExtent(extent, sourceCrs = currentCrs) {
+    if (!validExtent(extent)) return false;
+    if (sourceCrs === currentCrs) {
+      map.getView().fit(extent, { padding: [0, 0, 0, 0], duration: 0 });
+      return true;
+    }
+
+    const size = map.getSize();
+    if (!size?.[0] || !size?.[1]) return false;
+    const sourceCenter = [
+      (extent[0] + extent[2]) / 2,
+      (extent[1] + extent[3]) / 2,
+    ];
+    const sourceResolution = Math.max(
+      (extent[2] - extent[0]) / size[0],
+      (extent[3] - extent[1]) / size[1],
+    );
+    const projectedView = reprojectViewState(
+      olRef,
+      sourceCrs,
+      currentCrs,
+      sourceCenter,
+      sourceResolution,
+    );
+    if (!projectedView) return false;
+    map.getView().setCenter(projectedView.center);
+    map.getView().setResolution(projectedView.resolution);
+    return true;
+  }
+
+  function getViewExtent() {
+    const size = map.getSize();
+    if (!size) return null;
+    const extent = map.getView().calculateExtent(size);
+    return validExtent(extent) ? extent : null;
+  }
+
   function getViewBbox4326() {
     const extent = captureViewExtent4326(currentCrs);
     if (!extent) return null;
@@ -620,6 +672,8 @@ export function createMapController({
     updateMap,
     setLayerOpacity,
     fitMapToBbox4326,
+    fitMapToExtent,
+    getViewExtent,
     getViewBbox4326,
     populateCrsSelect,
   };
