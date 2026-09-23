@@ -75,6 +75,14 @@ export const DEFAULT_VARIABLE_LABELS = {};
 
 let displayLabels = null;
 
+function labelInspectionEnabled() {
+  return new URLSearchParams(window.location.search).get("labelKeys") === "1";
+}
+
+function displayedLabel(key, value) {
+  return labelInspectionEnabled() ? `[${key}]` : value;
+}
+
 export function applyDisplayLabels(labels) {
   if (!labels || typeof labels !== "object") {
     throw new Error("Invalid display-labels.json");
@@ -86,16 +94,33 @@ export function applyDisplayLabels(labels) {
 
 export function portalTitle(portalId) {
   const id = String(portalId || "");
-  return displayLabels?.viewer?.portalTitles?.[id] || id;
+  return displayedLabel(
+    `viewer.portalTitles.${id}`,
+    displayLabels?.viewer?.portalTitles?.[id] || id,
+  );
 }
 
 export function menuDisplayLabel(portalId, field, key) {
   const value = String(key || "");
   const portal = displayLabels?.portals?.[portalId] || {};
-  return portal[field]?.[value]
+  const label = portal[field]?.[value]
     || (field === "frequency" ? displayLabels?.common?.frequency?.[value] : null)
     || (value === "unknown" ? displayLabels?.common?.unknown : null)
     || value;
+  return displayedLabel(`portals.${portalId}.${field}.${value}`, label);
+}
+
+export function defaultVariableLabel(variableCode) {
+  const code = String(variableCode || "");
+  return displayedLabel(
+    `viewer.defaultVariableLabels.${code}`,
+    DEFAULT_VARIABLE_LABELS[code] || DEFAULT_VARIABLE_LABELS[code.toLowerCase()] || code,
+  );
+}
+
+export function paletteLabel(paletteId) {
+  const id = String(paletteId || "");
+  return displayedLabel(`viewer.paletteLabels.${id}`, PALETTE_LABELS[id] || id);
 }
 
 export const CRS_OPTIONS = [

@@ -1,6 +1,6 @@
 import {
-  DEFAULT_VARIABLE_LABELS,
   ENABLED_PORTALS,
+  defaultVariableLabel,
   menuDisplayLabel,
   portalTitle,
 } from '../core/config.js';
@@ -89,9 +89,7 @@ export function createMenuController({
       const menuKey = String(entry?.menuFields?.variable || fallbackLabel || variableCode).trim();
       const menuLabel = menuDisplayLabel(portal.id, "variable", menuKey);
       if (menuLabel.toLowerCase() !== variableCode.toLowerCase()) return menuLabel;
-      return DEFAULT_VARIABLE_LABELS[variableCode]
-        || DEFAULT_VARIABLE_LABELS[variableCode.toLowerCase()]
-        || menuLabel;
+      return defaultVariableLabel(variableCode || menuLabel);
     }
 
     async function selectDataset(element, entry, basename, selectionLabel) {
