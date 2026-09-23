@@ -16,7 +16,6 @@ import {
 import { createTimeController } from "./time.js";
 import { createMenuController } from "./portal/menu.js";
 import { createMapController } from "./map/controller.js";
-import { createSubsettingController } from "./subsetting.js";
 import {
   createDatasetController,
   variableLabelForGroup,
@@ -377,57 +376,95 @@ const menuController = createMenuController({
 
 const { renderMenuForGroup, populatePortalSelect } = menuController;
 
-let clearSubsetDrawing = () => {};
-let setSubsetDrawMode = () => {};
-let downloadSubset = () => {};
+let subsettingControllerPromise = null;
 
-const subsettingController = createSubsettingController({
-  state,
-  portal,
-  ui: {
-    subsetSpatialMode,
-    subsetTimeModeFull,
-    subsetTimeModeCurrent,
-    subsetTimeModeRange,
-    subsetTimeModeInputs,
-    subsetTimeStart,
-    subsetTimeEnd,
-    subsetDownloadBtn,
-  },
-  status: {
-    startStatusSpinner,
-    stopStatusSpinner,
-    setStatus,
-    suppressStatusUpdates,
-    unsuppressStatusUpdates,
-    forceSetStatus,
-  },
-  services: {
-    fetchText,
-    fileServerUrlForUrlPath,
-    dodsBaseForUrlPath,
-    ncpartitionerBase,
-    threddsRoot,
-  },
-  time: {
-    getSubsetTimeMode,
-    getSelectedTime,
-  },
-  mapDeps: {
-    map,
-    olRef: ol,
-    subsetDrawSource,
-    subsetDrawLayer,
-    getCurrentCrs,
+function loadSubsettingController() {
+  if (!subsettingControllerPromise) {
+    subsettingControllerPromise = import("./subsetting.js")
+      .then(({ createSubsettingController }) => {
+        const controller = createSubsettingController({
+          state,
+          portal,
+          ui: {
+            subsetSpatialMode,
+            subsetTimeModeFull,
+            subsetTimeModeCurrent,
+            subsetTimeModeRange,
+            subsetTimeModeInputs,
+            subsetTimeStart,
+            subsetTimeEnd,
+            subsetDownloadBtn,
+          },
+          status: {
+            startStatusSpinner,
+            stopStatusSpinner,
+            setStatus,
+            suppressStatusUpdates,
+            unsuppressStatusUpdates,
+            forceSetStatus,
+          },
+          services: {
+            fetchText,
+            fileServerUrlForUrlPath,
+            dodsBaseForUrlPath,
+            ncpartitionerBase,
+            threddsRoot,
+          },
+          time: {
+            getSubsetTimeMode,
+            getSelectedTime,
+          },
+          mapDeps: {
+            map,
+            olRef: ol,
+            subsetDrawSource,
+            subsetDrawLayer,
+            getCurrentCrs,
+          },
+        });
+        cancelPendingSubsetStatus = controller.cancelPendingSubsetStatus;
+        return controller;
+      })
+      .catch((error) => {
+        subsettingControllerPromise = null;
+        throw error;
+      });
   }
-});
+  return subsettingControllerPromise;
+}
 
-({
-  clearSubsetDrawing,
-  setSubsetDrawMode,
-  downloadSubset,
-  cancelPendingSubsetStatus,
-} = subsettingController);
+async function setSubsetDrawMode(mode) {
+  const isDrawMode = mode === "draw_bbox" || mode === "draw_point";
+  if (!isDrawMode && !subsettingControllerPromise) return;
+  try {
+    const controller = await loadSubsettingController();
+    controller.setSubsetDrawMode(mode);
+  } catch (error) {
+    console.error(error);
+    setStatus(`Could not load subsetting tools: ${error.message}`, true);
+  }
+}
+
+async function clearSubsetDrawing() {
+  if (!subsettingControllerPromise) return;
+  try {
+    const controller = await loadSubsettingController();
+    controller.clearSubsetDrawing();
+  } catch (error) {
+    console.error(error);
+    setStatus(`Could not load subsetting tools: ${error.message}`, true);
+  }
+}
+
+async function downloadSubset() {
+  try {
+    const controller = await loadSubsettingController();
+    await controller.downloadSubset();
+  } catch (error) {
+    console.error(error);
+    setStatus(`Could not load subsetting tools: ${error.message}`, true);
+  }
+}
 
 async function setActiveGroup(groupId) {
   const next = getGroupById(groupId) || groups[0];
