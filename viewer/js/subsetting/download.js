@@ -86,13 +86,13 @@ export function createSubsetDownloadController({
 
   function cancelInvalidTimeRange(run, reason, message, inputs) {
     flagTimeInputs(inputs);
-    alert(message);
+    setStatus(message, true);
     logger.finishSubsetRun(run, 'cancelled', { reason });
     throw new SubsetCancelled(message, true);
   }
 
   function cancelSubsetWithError(run, reason, message) {
-    alert(message);
+    setStatus(message, true);
     logger.finishSubsetRun(run, 'cancelled', { reason });
     throw new SubsetCancelled(message, true);
   }
@@ -151,10 +151,8 @@ export function createSubsetDownloadController({
     const messageEl = document.getElementById('largeSubsetDialogMessage');
 
     if (!(dialog instanceof HTMLDialogElement) || !messageEl) {
-      const continueSubset = window.confirm(
-        `${message}\n\nPress OK to continue with subset generation.\nPress Cancel to switch to the full time range instead.`
-      );
-      return continueSubset ? 'continue' : 'full';
+      setStatus('Could not continue the subset request. Please try again.', true);
+      return 'cancel';
     }
 
     messageEl.textContent = message;
@@ -168,7 +166,7 @@ export function createSubsetDownloadController({
       };
       const onCancel = (event) => {
         event.preventDefault();
-        dialog.close('cancel');
+        dialog.querySelector('button[value="cancel"]')?.focus();
       };
       const onClick = (event) => {
         if (event.target === dialog) dialog.close('cancel');
@@ -277,7 +275,7 @@ export function createSubsetDownloadController({
     if (spatialMode === 'draw_bbox' || spatialMode === 'draw_point') {
       const bbox = drawController.getDrawnBbox4326();
       if (!bbox) {
-        alert(spatialMode === 'draw_point' ? 'Please add a point on the map first.' : 'Please draw a geometry on the map first.');
+        setStatus(spatialMode === 'draw_point' ? 'Please add a point on the map first.' : 'Please draw a bounding box on the map first.', true);
         logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-drawn-bbox' });
         throw new SubsetCancelled();
       }
@@ -289,7 +287,7 @@ export function createSubsetDownloadController({
 
     const bbox = drawController.getCurrentViewBbox4326();
     if (!bbox) {
-      alert('Could not determine map extent for bbox.');
+      setStatus('Could not determine map extent for bbox.', true);
       logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-bbox' });
       throw new SubsetCancelled();
     }
@@ -316,7 +314,7 @@ export function createSubsetDownloadController({
     if (useCurrent) {
       const selectedTime = getSelectedTime();
       if (!selectedTime || selectedTime === '—') {
-        alert('No selected time available for this dataset.');
+        setStatus('No selected time available for this dataset.', true);
         logger.finishSubsetRun(run, 'cancelled', { reason: 'missing-selected-time' });
         throw new SubsetCancelled();
       }
@@ -650,8 +648,8 @@ export function createSubsetDownloadController({
       return;
     }
     if (subsetDownloadBtn.disabled) return;
-    if (!state.currentDataset) return alert('Please select a dataset first');
-    if (!state.variable) return alert('Could not infer variable for this file.');
+    if (!state.currentDataset) return setStatus('Please select a dataset first', true);
+    if (!state.variable) return setStatus('Could not infer variable for this file.', true);
 
     setSubsetDownloadBusy(true);
     const run = logger.startSubsetRun('subset-download', { portal: portal.id, dataset: state.currentDataset?.urlPath || null });
@@ -699,7 +697,7 @@ export function createSubsetDownloadController({
         timeMode,
         error: String(error?.message || error || 'unknown')
       });
-      alert(`Subset failed: ${error?.message || error}`);
+      setStatus(`Subset failed: ${error?.message || error}`, true);
     } finally {
       if (activeSubsetRunId === run.id && !activeBackgroundStatus) activeSubsetRunId = null;
       if (!activeBackgroundStatus) setSubsetDownloadBusy(false);

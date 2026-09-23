@@ -147,7 +147,7 @@ export function wireEvents({
   });
 
   metadataBtn.addEventListener('click', () => {
-    if (!state.currentDataset) return alert('Please select a dataset first');
+    if (!state.currentDataset) return setStatus('Please select a dataset first', true);
     metadataDialogController.show(state.currentDataset);
   });
 
