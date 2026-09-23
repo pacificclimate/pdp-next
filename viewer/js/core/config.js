@@ -47,7 +47,6 @@ export const KNOWN_PORTALS = [
 
 export const PORTAL_PARAM_KEY = "portal";
 export const WMS_VERSION = "1.3.0";
-export const TIME_EXPAND_LIMIT = 2000;
 export const NCSS_WARN_TIMESTEPS = 1500;
 export const DEFAULT_PORTAL_ID = "canada_mosaic";
 

@@ -3,7 +3,6 @@ import "../viewer.css";
 import proj4 from "proj4";
 import { ol } from "./core/openlayers.js";
 import {
-  TIME_EXPAND_LIMIT,
   DEFAULT_VARIABLE_LABELS,
   CRS_OPTIONS,
   DEFAULT_CANADA_BBOX_4326,
@@ -81,6 +80,10 @@ function normalizeKey(v) {
     .toLowerCase();
 }
 
+function normalizeCfTimestamp(value) {
+  return String(value || '').trim().replace(/\.0+Z$/, 'Z');
+}
+
 function getGroupById(id) {
   const key = normalizeKey(id);
   return groups.find((g) => normalizeKey(g.id) === key) || null;
@@ -98,6 +101,7 @@ const state = {
   layerDetails: null,
   metadataRange: null,
   ncpIndexCache: {},
+  timeCoordinateCache: {},
   subset: {
     timeMode: "full",
     timeStart: "",
@@ -138,18 +142,10 @@ const timeController = createTimeController({
     subsetTimeStart,
     subsetTimeEnd,
   },
-  services: {
-    fetchText,
-  },
-  config: {
-    TIME_EXPAND_LIMIT,
-  },
 });
 
 const {
   parseWmsCapabilities,
-  deriveTimesFromLayerDetails,
-  fetchLayerTimesteps,
   getSubsetTimeMode,
   getSelectedTime,
   getSelectedTimeIndex,
@@ -159,7 +155,6 @@ const {
   syncSubsetTimeRangeVisibility,
   updateTimeUI,
   toDateInputValue,
-  parseSubsetDateValue,
   updateSubsetTimeInputsEnabled,
 } = timeController;
 
@@ -252,15 +247,10 @@ function applyInitialViewerState() {
     );
   }
   if (initialUrlState.time) {
-    let timeIndex = state.times.indexOf(initialUrlState.time);
-    if (timeIndex < 0) {
-      const wantedTime = Date.parse(initialUrlState.time);
-      if (Number.isFinite(wantedTime)) {
-        timeIndex = state.times.findIndex(
-          (value) => Date.parse(value) === wantedTime,
-        );
-      }
-    }
+    const requestedTime = normalizeCfTimestamp(initialUrlState.time);
+    const timeIndex = state.times.findIndex(
+      (value) => normalizeCfTimestamp(value) === requestedTime,
+    );
     if (timeIndex >= 0) timeSlider.value = String(timeIndex);
   }
   updateTimeUI();
@@ -337,8 +327,6 @@ const datasetController = createDatasetController({
   time: {
     parseWmsCapabilities,
     fetchLayerDetails,
-    deriveTimesFromLayerDetails,
-    fetchLayerTimesteps,
     updateTimeUI,
     toDateInputValue,
   },
@@ -423,7 +411,6 @@ const subsettingController = createSubsettingController({
   time: {
     getSubsetTimeMode,
     getSelectedTime,
-    parseSubsetDateValue,
   },
   mapDeps: {
     map,
