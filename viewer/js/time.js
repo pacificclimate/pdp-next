@@ -25,6 +25,13 @@ export function createTimeController({
     updateTimeUI: uiController.updateTimeUI,
     toDateInputValue: parseHelpers.toDateInputValue,
     updateSubsetTimeInputsEnabled: uiController.updateSubsetTimeInputsEnabled,
+    selectTimeFromDateInput: uiController.selectTimeFromDateInput,
+    toggleTimeCalendar: uiController.toggleTimeCalendar,
+    closeTimeCalendars: uiController.closeTimeCalendars,
+    toggleSubsetTimeCalendar: uiController.toggleSubsetTimeCalendar,
+    applySubsetTimeCalendarSelection: uiController.applySubsetTimeCalendarSelection,
+    validateSubsetTimeRange: uiController.validateSubsetTimeRange,
+    adjustSubsetEndForStart: uiController.adjustSubsetEndForStart,
     hasMultipleTimes: uiController.hasMultipleTimes
   };
 }
