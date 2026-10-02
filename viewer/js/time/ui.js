@@ -246,10 +246,7 @@ export function createTimeUiController({
   function applySubsetTimeCalendarSelection(boundary, index) {
     const input = boundary === "start" ? subsetTimeStart : subsetTimeEnd;
     input.value = formatDailyLabel(state.times[index]);
-    subsetTimeStartCalendar.hidden = true;
-    subsetTimeEndCalendar.hidden = true;
-    subsetTimeStartCalendarBtn?.setAttribute("aria-expanded", "false");
-    subsetTimeEndCalendarBtn?.setAttribute("aria-expanded", "false");
+    closeTimeCalendars();
   }
 
   function updateSubsetTimeInputsEnabled() {
@@ -276,7 +273,7 @@ export function createTimeUiController({
     return {
       input: subsetTimeEnd,
       value: subsetTimeEnd.value,
-      isFinalTimestep: adjustedIndex === startIndex
+      isFinalTimestep: adjustedIndex === state.times.length - 1
     };
   }
 
