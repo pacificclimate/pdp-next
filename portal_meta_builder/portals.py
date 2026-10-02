@@ -164,6 +164,9 @@ PORTAL_CONFIGS: Dict[str, Dict[str, Any]] = {
     "prism": {
         "menuSchema": menu_schema("prism", ["period", "frequency", "variable"]),
         "menuBuilder": prism_menu_builder,
+        "renderingOverrides": {
+            "precip": {"scaleType": "log", "suggestedMin": {"annual": 200, "other": 1}},
+        },
     },
     "canada_mosaic": {
         "menuSchema": menu_schema("canada_mosaic", ["period", "frequency", "variable"]),
