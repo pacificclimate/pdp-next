@@ -42,6 +42,7 @@ import {
   timeInfo,
   paletteSelect,
   scaleMin,
+  scaleType,
   scaleMax,
   numColors,
   styleSelect,
@@ -196,6 +197,7 @@ const mapController = createMapController({
     opacitySlider,
     paletteSelect,
     scaleMin,
+    scaleType,
     scaleMax,
     numColors,
     styleSelect,
@@ -263,6 +265,7 @@ function applyInitialViewerState() {
   if (initialUrlState.palette && selectHasValue(paletteSelect, initialUrlState.palette)) {
     paletteSelect.value = initialUrlState.palette;
   }
+  if (initialUrlState.scaleType) scaleType.value = initialUrlState.scaleType;
   if (initialUrlState.min !== null) scaleMin.value = String(initialUrlState.min);
   if (initialUrlState.max !== null) scaleMax.value = String(initialUrlState.max);
   if (initialUrlState.colors !== null) {
@@ -299,6 +302,7 @@ function currentViewerUrlState() {
     crs: getCurrentCrs(),
     palette: paletteSelect.value,
     style: styleSelect.value,
+    scaleType: scaleType.value,
     min: scaleMin.value === '' ? null : Number(scaleMin.value),
     max: scaleMax.value === '' ? null : Number(scaleMax.value),
     colors: Number(numColors.value),
@@ -338,6 +342,7 @@ const datasetController = createDatasetController({
   ui: {
     legendPanel,
     crsSelect,
+    scaleType,
     subsetTimeStart,
     subsetTimeEnd,
     timeSlider,
