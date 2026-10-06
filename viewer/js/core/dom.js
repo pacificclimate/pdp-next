@@ -49,6 +49,7 @@ export const subsetTimeStartCalendarBtn = document.getElementById('subsetTimeSta
 export const subsetTimeEndCalendarBtn = document.getElementById('subsetTimeEndCalendarBtn');
 export const subsetTimeStartCalendar = document.getElementById('subsetTimeStartCalendar');
 export const subsetTimeEndCalendar = document.getElementById('subsetTimeEndCalendar');
+export const pointerCoordinates = document.getElementById('pointerCoordinates');
 export const subsetSpatialMode = document.getElementById('subsetSpatialMode');
 export const subsetClearDraw = document.getElementById('subsetClearDraw');
 export const subsetDownloadBtn = document.getElementById('subsetDownloadBtn');
