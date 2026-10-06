@@ -63,6 +63,7 @@ import {
   subsetTimeEnd,
   subsetDownloadOrderNotice,
   subsetSpatialMode,
+  pointerCoordinates,
   setStatus,
   startStatusSpinner,
   stopStatusSpinner,
@@ -207,6 +208,7 @@ const mapController = createMapController({
     legendMin,
     legendMax,
     crsSelect,
+    pointerCoordinates,
   },
   services: {
     setStatus,
