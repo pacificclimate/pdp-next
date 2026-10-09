@@ -12,7 +12,13 @@ import {
   parseCfUnits,
   validateCfDate
 } from '../viewer/js/time/cftime.js';
-import { createSubsetIndexController, parseAsciiDimensionValues } from '../viewer/js/subsetting/indexes.js';
+import {
+  chronologicalTimestamps,
+  createSubsetIndexController,
+  parseAsciiDimensionValues,
+  sourceCoordinateOrder,
+} from '../viewer/js/subsetting/indexes.js';
+import { buildNcpartitionerTargets } from '../viewer/js/subsetting/download.js';
 
 test('normalizes supported CF calendar aliases', () => {
   assert.equal(normalizeCalendar(), 'standard');
@@ -114,7 +120,23 @@ test('selects the same 360_day dates from descending coordinates', () => {
   });
 
   assert.deepEqual(findBoundedIndexRange(ascending, ...bounds), [30, 59]);
-  assert.deepEqual(findBoundedIndexRange(descending, ...bounds), [300, 329]);
+  const descendingIndexes = findBoundedIndexRange(descending, ...bounds);
+  assert.deepEqual(descendingIndexes, [300, 329]);
+  assert.equal(buildNcpartitionerTargets({
+    variable: 'tas', timeCoordinateName: 'time', hasTimeCoordinate: true,
+    timeStart: descendingIndexes[0], timeEnd: descendingIndexes[1],
+    latStart: 2, latEnd: 4, lonStart: 5, lonEnd: 7,
+  }), 'time[300:329],lat[2:4],lon[5:7],tas[300:329][2:4][5:7]');
+  assert.equal(sourceCoordinateOrder(ascending), 'ascending');
+  assert.equal(sourceCoordinateOrder(descending), 'descending');
+  assert.deepEqual(
+    chronologicalTimestamps([2.5, 1.5, 0.5], [
+      '1950-01-03T12:00:00Z',
+      '1950-01-02T12:00:00Z',
+      '1950-01-01T12:00:00Z',
+    ]),
+    ['1950-01-01T12:00:00Z', '1950-01-02T12:00:00Z', '1950-01-03T12:00:00Z'],
+  );
 });
 
 test('includes exact day boundaries and uses the nearest sparse time coordinate', () => {
@@ -162,7 +184,7 @@ test('ncpartitioner reuses the time coordinate fetched for a CF slider', async (
   const controller = createSubsetIndexController({
     state: {
       ncpIndexCache: {},
-      timeCoordinateCache: { '/data.nc': [11160.5, 11161.5] },
+      timeCoordinateCache: { '/data.nc': [11161.5, 11160.5] },
       currentDataset: { timeMetadata: { count: 2 } }
     },
     fetchText: async (url) => {
@@ -175,7 +197,7 @@ test('ncpartitioner reuses the time coordinate fetched for a CF slider', async (
   const info = await controller.getNcpartitionerIndexInfo('/data.nc');
 
   assert.equal(requestedTime, false);
-  assert.deepEqual(info.time, [11160.5, 11161.5]);
+  assert.deepEqual(info.time, [11161.5, 11160.5]);
 });
 
 test('ncpartitioner index info retains the first OpenDAP block value', async () => {

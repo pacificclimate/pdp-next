@@ -1,3 +1,18 @@
+/** Returns whether a source coordinate is stored oldest-to-newest or reverse. */
+export function sourceCoordinateOrder(values) {
+  return values.length < 2 || values[0] <= values[values.length - 1]
+    ? 'ascending'
+    : 'descending';
+}
+
+/** Returns timestamps in chronological coordinate order. */
+export function chronologicalTimestamps(values, timestamps) {
+  return values
+    .map((value, index) => ({ value, timestamp: timestamps[index] }))
+    .sort((first, second) => first.value - second.value)
+    .map(({ timestamp }) => timestamp);
+}
+
 // THREDDS may render a one-dimensional DAP ASCII response either one value per
 // line or as a header followed by a comma-separated block.
 export function parseAsciiDimensionValues(text, varName) {

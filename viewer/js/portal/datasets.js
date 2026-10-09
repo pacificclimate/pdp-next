@@ -4,7 +4,11 @@ import {
   DEFAULT_CANADA_BBOX_4326,
 } from "../core/config.js";
 import { cfNumberToIso, normalizeCalendar } from "../time/cftime.js";
-import { parseAsciiDimensionValues } from "../subsetting/indexes.js";
+import {
+  chronologicalTimestamps,
+  parseAsciiDimensionValues,
+  sourceCoordinateOrder,
+} from "../subsetting/indexes.js";
 
 export function variableLabelForGroup(varCode, group, defaultLabels = {}) {
   const v = String(varCode || "");
@@ -153,16 +157,19 @@ export function createDatasetController({
       state.timeCoordinateCache ||= {};
       state.timeCoordinateCache[key] = values;
     }
-    const times = values.map((value) => cfNumberToIso(
+    const timestamps = values.map((value) => cfNumberToIso(
       value,
       timeMetadata.units,
       timeMetadata.calendar,
     ));
-    if (!times.length || times.some((value) => !value)) {
+    if (!timestamps.length || timestamps.some((value) => !value)) {
       throw new Error('Could not convert the source CF time coordinate');
     }
-    state.times = times;
-    setSubsetTimeInputs(times[0], times[times.length - 1]);
+    const timeCoordinateOrder = sourceCoordinateOrder(values);
+    state.currentDataset.timeCoordinateOrder = timeCoordinateOrder;
+    ui.subsetDownloadOrderNotice.hidden = timeCoordinateOrder !== 'descending';
+    state.times = chronologicalTimestamps(values, timestamps);
+    setSubsetTimeInputs(state.times[0], state.times[state.times.length - 1]);
     applyTimesToUI();
   }
 
@@ -219,6 +226,7 @@ export function createDatasetController({
       state.selectedLayer = null;
       state.times = [];
       state.layerDetails = null;
+      ui.subsetDownloadOrderNotice.hidden = true;
       state.metadataRange = null;
 
       await resolveLayersFromCapabilities();
