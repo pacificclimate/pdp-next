@@ -166,7 +166,7 @@ export function createSubsetDownloadController({
       };
       const onCancel = (event) => {
         event.preventDefault();
-        dialog.querySelector('button[value="cancel"]')?.focus();
+        dialog.close('cancel');
       };
       const onClick = (event) => {
         if (event.target === dialog) dialog.close('cancel');
