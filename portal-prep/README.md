@@ -121,8 +121,53 @@ python3 scripts/update-portal-meta.py \
 
 `--prune` removes cached entries that are no longer present in the mirror. The
 result is one `portal-meta/<portal>.json` file per portal. Each matched file
-receives a `rendering` object containing `min`, `max`, `variable`, `logScale`,
-and the min/max source.
+receives a `rendering` object containing `min`, `max`, `variable`, `scaleType`,
+and the min/max source. When needed, it also contains `suggestedMin` and
+`suggestedMax`. The CSV path is supplied through `--minmax-csv`.
+
+### Rendering defaults and portal overrides
+
+The CSV supplies the measured `min` and `max`.
+[`LOG_VARIABLE_PATTERNS`](../portal_meta_builder/minmax.py) chooses the
+default scale by variable class. Portal-specific settings belong in
+[`PORTAL_CONFIGS`](../portal_meta_builder/portals.py) under
+`renderingOverrides`. The builder applies these settings when generating
+the portal JSON; the viewer reads the resulting `rendering` record from that
+JSON. Use `"*"` for every variable in a portal; a class entry such as
+`"precip"` takes precedence over `"*"`. For example:
+
+```python
+"example_portal": {
+    "renderingOverrides": {
+        "*": {"rangeDecimalPlaces": 2},
+        "precip": {
+            "logMinFloor": 0.05,
+            "suggestedMax": 500,
+        },
+    },
+},
+```
+
+`scaleType` is `"linear"` or `"log"`. `suggestedMin` and `suggestedMax`
+set the initial input values; omitted values come from the CSV range. Users can
+edit either input and choose a different scale. These fields do not enforce
+limits on user-entered ranges. The default `0.01` minimum applies to
+precipitation, rain, or snow in millimetre amounts or daily rates (including
+`kg m-2 d-1`). When the CSV minimum is nonpositive, the fallback is
+`1e-7` for precipitation, rain, or snow in per-second flux units and `0.01`
+for wind speed. A manual switch to Log without a dataset suggestion starts at
+`0.01`. These values are editable defaults, not limits. PRISM's annual and other precipitation suggestions are
+configured in PRISM's `renderingOverrides`. `logMinFloor` sets a positive minimum for
+automatic log defaults in that portal or class; an explicit `suggestedMin` wins.
+`rangeDecimalPlaces` rounds generated default minima down and maxima up to
+that many decimal places, and sets legend formatting. These rounded defaults
+appear in the inputs and are the values sent to WMS. User-entered numbers are
+never rounded; if they contain more decimals, the legend shows the full value.
+`rangeDecimalPlaces` accepts integers from 0 to 12.
+
+After editing the overrides, rebuild the affected portal metadata with the
+existing `--portal` and `--minmax-csv` options below. The CSV path can point to
+an external file; it does not need to be copied into this repository.
 
 For a focused metadata rebuild, repeat `--portal` as needed:
 

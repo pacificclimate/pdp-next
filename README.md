@@ -153,7 +153,7 @@ To test a restricted portal rollout locally, use the same environment variables
 as the deployed viewer:
 
 ```bash
-ENABLED_PORTALS=canada_mosaic,prism,vicgl \
+ENABLED_PORTALS=gridded_daily,canada_mosaic,prism,vicgl \
 DEFAULT_PORTAL_ID=canada_mosaic \
 npm run dev
 ```

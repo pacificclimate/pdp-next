@@ -24,6 +24,7 @@ export const metadataMarkdownDownload = document.getElementById('metadataMarkdow
 export const metadataJsonDownload = document.getElementById('metadataJsonDownload');
 export const metadataNcmlDownload = document.getElementById('metadataNcmlDownload');
 export const paletteSelect = document.getElementById('paletteSelect');
+export const scaleType = document.getElementById('scaleType');
 export const scaleMin = document.getElementById('scaleMin');
 export const scaleMax = document.getElementById('scaleMax');
 export const numColors = document.getElementById('numColors');
