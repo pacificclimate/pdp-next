@@ -51,6 +51,11 @@ export const subsetTimeStartCalendar = document.getElementById('subsetTimeStartC
 export const subsetTimeEndCalendar = document.getElementById('subsetTimeEndCalendar');
 export const pointerCoordinates = document.getElementById('pointerCoordinates');
 export const subsetSpatialMode = document.getElementById('subsetSpatialMode');
+export const bboxUi = Object.fromEntries([
+  'bboxEditor', 'bboxCrs', 'bboxMinX', 'bboxMinY', 'bboxMaxX', 'bboxMaxY',
+  'bboxError', 'bboxApply', 'bboxShowCoordinates',
+  'bboxMinXLabel', 'bboxMinYLabel', 'bboxMaxXField', 'bboxMaxYField', 'bboxShowLabel', 'bboxHint',
+].map((id) => [id, document.getElementById(id)]));
 export const subsetClearDraw = document.getElementById('subsetClearDraw');
 export const subsetDownloadBtn = document.getElementById('subsetDownloadBtn');
 export const subsetDownloadOrderNotice = document.getElementById('subsetDownloadOrderNotice');

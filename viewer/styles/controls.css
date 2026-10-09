@@ -67,6 +67,7 @@
 
 .color-row input:not([type="radio"]),
 .color-row select,
+.bbox-fields input,
 .format-select {
   width: 100%;
   padding: 10px;
@@ -635,3 +636,15 @@
   position: relative;
   z-index: 1001;
 }
+
+.bbox-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+}
+
+.bbox-fields label { font-size: 12px; }
+.bbox-fields input { width: 100%; min-width: 0; padding: 6px; box-sizing: border-box; }
+.bbox-crs { margin: 6px 0; font-size: 11px; }
+.bbox-error { margin: 4px 0; color: var(--danger-color, #b42318); font-size: 12px; }
+.bbox-fields input[aria-invalid="true"] { border-color: #b42318; }

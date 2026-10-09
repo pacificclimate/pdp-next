@@ -15,7 +15,8 @@ export function createSubsettingController({
   const logger = createSubsetLogger();
   const drawController = createSubsetDrawController({
     ...mapDeps,
-    setStatus: status.setStatus
+    setStatus: status.setStatus,
+    ui
   });
   const indexController = createSubsetIndexController({
     state,
@@ -35,6 +36,7 @@ export function createSubsettingController({
   });
 
   return {
+    restoreSelection: drawController.restoreSelection,
     clearSubsetDrawing: drawController.clearSubsetDrawing,
     setSubsetDrawMode: drawController.setSubsetDrawMode,
     downloadSubset: downloadController.downloadSubset,
