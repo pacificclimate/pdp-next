@@ -9,6 +9,9 @@ RUN npm run build
 
 FROM nginx:alpine
 
+# Pick up OS security fixes the base image may not have yet.
+RUN apk upgrade --no-cache
+
 COPY viewer/nginx.conf /etc/nginx/conf.d/default.conf
 COPY viewer/runtime-config.js.template /etc/nginx/templates/runtime-config.js.template
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/usr/share/nginx/html

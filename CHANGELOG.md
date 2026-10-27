@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.2] - 2026-10-27
+
+### Security
+- Rebuild images to pick up the Brotli decoder fix for
+  [CVE-2026-111497](https://nvd.nist.gov/vuln/detail/CVE-2026-111497). The viewer
+  image now runs `apk upgrade` so it gets `brotli-libs` 1.2.1 before
+  `nginx:alpine` ships the fix itself.
+
 ## [1.1.1] - 2026-09-17
 
 ### Fixed

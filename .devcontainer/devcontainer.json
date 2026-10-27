@@ -1,0 +1,50 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+  "name": "PDP Next",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "VARIANT": "ubuntu-24.04"
+    }
+  },
+  // Features to add to the dev container. More info: https://containers.dev/features.
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" },
+    // Keep the inner daemon's networks off 172.17.0.0/16: this container sits
+    // on the host's default bridge, and an inner docker0 there takes the
+    // gateway's address, 172.17.0.1, which cuts the network out every ~30 s.
+    "ghcr.io/devcontainers/features/docker-in-docker:2.12.0": {
+      "dockerDefaultAddressPool": "base=10.213.0.0/16,size=24"
+    }
+  },
+  // Bind mounts below error out if their host source is missing (unlike the old
+  // -v syntax, --mount does not auto-create it), so make sure these paths exist
+  // before the container is created. Harmless no-ops for non-Claude-Code users:
+  // they just get an empty dir/file mounted in.
+  "initializeCommand": "mkdir -p ${localEnv:HOME}/.claude && touch ${localEnv:HOME}/.claude.json",
+  // Vite dev server.
+  "forwardPorts": [5173],
+  "postCreateCommand": "bash ./.devcontainer/post-install.sh",
+  "postStartCommand": "bash ./.devcontainer/post-start.sh",
+  // Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+  "remoteUser": "vscode",
+  "runArgs": [
+    // give a nicer name to the container
+    "--name",
+    "${localEnv:USER}_pdpnext"
+  ],
+  "mounts": [
+    // localEnv:HOME, not "~" -- nothing expands a tilde on this path.
+    // Claude Code's config directory -- skills, plugins, agents, session
+    // history -- and its settings file, so they persist into the container
+    // instead of starting fresh each time.
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": ["EditorConfig.EditorConfig", "dbaeumer.vscode-eslint"]
+    }
+  }
+}
