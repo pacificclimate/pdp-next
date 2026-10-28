@@ -7,36 +7,6 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from netCDF4 import Dataset, num2date
 
 
-SCENARIO_LABELS_FROM_SSP: Dict[str, str] = {
-    "historical,ssp126": "historical,rcp26",
-    "historical,ssp245": "historical,rcp45",
-    "historical,ssp585": "historical,rcp85",
-    "historical+ssp126": "historical,rcp26",
-    "historical+ssp245": "historical,rcp45",
-    "historical+ssp585": "historical,rcp85",
-}
-
-SCENARIO_LABELS_FROM_RCP: Dict[str, str] = {
-    "historical,rcp26": "historical,rcp26",
-    "historical,rcp45": "historical,rcp45",
-    "historical,rcp85": "historical,rcp85",
-    "historical+rcp26": "historical,rcp26",
-    "historical+rcp45": "historical,rcp45",
-    "historical+rcp85": "historical,rcp85",
-}
-
-SCENARIO_LABELS_FROM_SSP_U6: Dict[str, str] = {
-    "historical,ssp126": "Historical, SSP1-2.6",
-    "historical,ssp245": "Historical, SSP2-4.5",
-    "historical,ssp370": "Historical, SSP3-7.0",
-    "historical,ssp585": "Historical, SSP5-8.5",
-    "historical+ssp126": "Historical, SSP1-2.6",
-    "historical+ssp245": "Historical, SSP2-4.5",
-    "historical+ssp370": "Historical, SSP3-7.0",
-    "historical+ssp585": "Historical, SSP5-8.5",
-}
-
-
 def parse_year(value: str) -> Optional[int]:
     if not value:
         return None
@@ -91,20 +61,23 @@ def first_non_empty(values: Sequence[Any]) -> str:
 def normalize_scenario_label(raw: str, scenario_style: str) -> str:
     value = str(raw or "").strip()
     if not value:
-        return "Unknown"
-    if scenario_style == "ssp_u6" and value in SCENARIO_LABELS_FROM_SSP_U6:
-        return SCENARIO_LABELS_FROM_SSP_U6[value]
-    if value in SCENARIO_LABELS_FROM_SSP:
-        return SCENARIO_LABELS_FROM_SSP[value]
-    if value in SCENARIO_LABELS_FROM_RCP:
-        return SCENARIO_LABELS_FROM_RCP[value]
+        return "unknown"
+    if scenario_style == "ssp_u6":
+        return value.replace("+", ",")
+    legacy_keys = {
+        "historical,ssp126": "historical,rcp26", "historical+ssp126": "historical,rcp26",
+        "historical,ssp245": "historical,rcp45", "historical+ssp245": "historical,rcp45",
+        "historical,ssp585": "historical,rcp85", "historical+ssp585": "historical,rcp85",
+    }
+    if value in legacy_keys:
+        return legacy_keys[value]
     return value.replace("+", ",")
 
 
 def normalize_run_label(raw: str, preserve_forcing: bool = False) -> str:
     value = str(raw or "").strip()
     if not value:
-        return "Unknown"
+        return "unknown"
     if preserve_forcing:
         return value
     match = re.match(r"^r(?P<r>\d+)i(?P<i>\d+)p(?P<p>\d+)(?:f\d+)?$", value)

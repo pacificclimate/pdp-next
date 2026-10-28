@@ -1,0 +1,100 @@
+{
+  "common": {
+    "unknown": "Unknown",
+    "frequency": {
+      "monthly": "Monthly",
+      "seasonal": "Seasonal",
+      "annual": "Annual"
+    }
+  },
+  "viewer": {
+    "paletteLabels": {
+      "default": "Default", "seq-Blues": "Sequential Blues", "seq-BuGn": "Sequential Blue-Green",
+      "seq-GnBu": "Sequential Green-Blue", "seq-Greens": "Sequential Greens", "seq-YlOrRd": "Sequential Yellow-Orange-Red",
+      "seq-OrRd": "Sequential Orange-Red", "seq-Reds": "Sequential Reds", "seq-Heat": "Sequential Heat",
+      "seq-viridis": "Viridis (sequential)", "psu-viridis": "PSU Viridis", "div-Spectral": "Diverging Spectral",
+      "div-RdBu": "Diverging Red → Blue", "div-RdBu-inv": "Diverging Blue → Red"
+    },
+    "portalTitles": {
+      "prism": "BC PRISM",
+      "canada_mosaic": "Canada Mosaic",
+      "vicgl": "Gridded Hydrologic Model Output (VICGL)",
+      "bccaqv2_u5": "CanDCS-U5 (BCCAQv2 CMIP5)",
+      "bccaqv2_u6": "CanDCS-U6 (BCCAQv2 CMIP6)",
+      "mbcn": "Canadian Downscaled Climate Scenarios (MBCn)",
+      "canesm5_u6": "CanESM5 (Univariate)",
+      "canesm5_m6": "CanESM5 (Multivariate)"
+    },
+    "defaultVariableLabels": {
+      "pr": "Total Precipitation",
+      "tas": "Mean Temperature",
+      "tasmax": "Daily Maximum Temperature",
+      "tasmin": "Daily Minimum Temperature",
+      "tmax": "Maximum Temperature",
+      "tmin": "Minimum Temperature"
+    }
+  },
+  "portals": {
+    "prism": {
+      "headings": { "period": "Period", "frequency": "Frequency", "variable": "Variable" },
+      "period": {
+        "1950-2007": "Averaged months, 1950-2007",
+        "1971-2000": "Climatological averages 1970-2000",
+        "1981-2010": "Climatological averages 1981-2010",
+        "1991-2020": "Climatological averages 1991-2020"
+      },
+      "variable": {
+        "tasmax": "Maximum Temperature", "tmax": "Maximum Temperature",
+        "tasmin": "Minimum Temperature", "tmin": "Minimum Temperature",
+        "pr": "Total Precipitation", "ppt": "Total Precipitation"
+      }
+    },
+    "canada_mosaic": {
+      "headings": { "period": "Period", "frequency": "Frequency", "variable": "Variable" },
+      "period": { "1981-2010": "Climatological averages 1981-2010" },
+      "variable": {
+        "pr": "Total Precipitation", "tmax": "Maximum Temperature",
+        "tmin": "Minimum Temperature", "tas": "Mean Temperature", "tasmean": "Mean Temperature"
+      }
+    },
+    "gridded_daily": {
+      "headings": { "source": "Dataset", "variable": "Variable" },
+      "source": {
+        "ANUSPLIN_CDA_v2012.1": "NRCANmet 2012",
+        "TPS_NWNA_v1": "PNWNAmet 2015",
+        "PCIC_BLEND_v1": "PCIC Blend 2021"
+      },
+      "variable": {
+        "tasmax": "Maximum Temperature", "tmax": "Maximum Temperature",
+        "tasmin": "Minimum Temperature", "tmin": "Minimum Temperature",
+        "pr": "Precipitation", "wind": "Wind"
+      }
+    },
+    "vicgl": {
+      "headings": { "scenario": "Scenario", "model": "Model", "variable": "Variable" },
+      "model": { "PNWNAmet": "PNWNAmet base" },
+      "variable": {
+        "BASEFLOW": "Baseflow", "EVAP": "Evapotranspiration", "GLAC_AREA": "Glacier Area",
+        "GLAC_MBAL": "Glacier Mass Balance", "GLAC_OUTFLOW": "Glacier Outflow",
+        "PET_NATVEG": "Potential Evapotranspiration", "PREC": "Precipitation",
+        "RAINF": "Rainfall", "SNOW_MELT": "Snow Melt", "SWE": "Snow Water Equivalent",
+        "RUNOFF": "Surface Runoff", "SOIL_MOIST_TOT": "Total Column Soil Moisture",
+        "TRANSP_VEG": "Transpiration"
+      }
+    },
+    "bccaqv2": { "headings": { "scenario": "Scenario", "model": "Model", "run": "Run", "variable": "Variable" }, "scenario": { "historical,rcp26": "historical,rcp26", "historical,rcp45": "historical,rcp45", "historical,rcp85": "historical,rcp85" } },
+    "bccaqv2_u5": { "headings": { "scenario": "Scenario", "model": "Model", "run": "Run", "variable": "Variable" }, "scenario": { "historical,rcp26": "historical,rcp26", "historical,rcp45": "historical,rcp45", "historical,rcp85": "historical,rcp85" } },
+    "bccaqv2_u6": {
+      "headings": { "scenario": "Scenario", "model": "Model", "run": "Run", "variable": "Variable" },
+      "scenario": {
+        "historical,ssp126": "Historical, SSP1-2.6", "historical,ssp245": "Historical, SSP2-4.5",
+        "historical,ssp370": "Historical, SSP3-7.0", "historical,ssp585": "Historical, SSP5-8.5",
+        "historical,ssp126__pcic12": "Historical, SSP1-2.6 (PCIC12)", "historical,ssp245__pcic12": "Historical, SSP2-4.5 (PCIC12)",
+        "historical,ssp370__pcic12": "Historical, SSP3-7.0 (PCIC12)", "historical,ssp585__pcic12": "Historical, SSP5-8.5 (PCIC12)"
+      }
+    },
+    "canesm5_u6": { "headings": { "scenario": "Scenario", "model": "Model", "run": "Run", "variable": "Variable" }, "scenario": { "historical,ssp126": "Historical, SSP1-2.6", "historical,ssp245": "Historical, SSP2-4.5", "historical,ssp370": "Historical, SSP3-7.0", "historical,ssp585": "Historical, SSP5-8.5" } },
+    "canesm5_m6": { "headings": { "scenario": "Scenario", "model": "Model", "run": "Run", "variable": "Variable" }, "scenario": { "historical,ssp126": "Historical, SSP1-2.6", "historical,ssp245": "Historical, SSP2-4.5", "historical,ssp370": "Historical, SSP3-7.0", "historical,ssp585": "Historical, SSP5-8.5" } },
+    "mbcn": { "headings": { "scenario": "Scenario", "model": "Model", "run": "Run", "variable": "Variable" }, "scenario": { "historical,ssp126": "Historical, SSP1-2.6", "historical,ssp245": "Historical, SSP2-4.5", "historical,ssp370": "Historical, SSP3-7.0", "historical,ssp585": "Historical, SSP5-8.5" } }
+  }
+}
