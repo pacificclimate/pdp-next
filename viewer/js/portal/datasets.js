@@ -144,10 +144,11 @@ export function createDatasetController({
       throw new Error(`Unsupported CF calendar: ${timeMetadata?.calendar || '(missing)'}`);
     }
     const key = String(state.currentDataset.urlPath || '');
+    const timeCoordinateName = String(timeMetadata?.name || 'time');
     let values = state.timeCoordinateCache?.[key];
     if (!values) {
-      const asciiUrl = `${dodsBaseForUrlPath(state.currentDataset.urlPath)}.ascii?time`;
-      values = parseAsciiDimensionValues(await fetchText(asciiUrl), 'time');
+      const asciiUrl = `${dodsBaseForUrlPath(state.currentDataset.urlPath)}.ascii?${encodeURIComponent(timeCoordinateName)}`;
+      values = parseAsciiDimensionValues(await fetchText(asciiUrl), timeCoordinateName);
       if (!values.length) throw new Error('Could not read the source CF time coordinate');
       state.timeCoordinateCache ||= {};
       state.timeCoordinateCache[key] = values;

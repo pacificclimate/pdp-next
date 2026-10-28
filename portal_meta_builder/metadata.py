@@ -180,6 +180,41 @@ def ensure_derived_fields(metadata: Dict[str, Any]) -> Dict[str, Any]:
     return metadata
 
 
+
+def is_cf_reference_time(variable: Any) -> bool:
+    """Return whether a variable's units are a parseable CF reference time."""
+    units = getattr(variable, "units", None)
+    if not units:
+        return False
+
+    try:
+        num2date(0, units=str(units), calendar=getattr(variable, "calendar", "standard"))
+    except Exception:
+        return False
+    return True
+
+
+def find_time_variable(ds: Dataset) -> Optional[Tuple[str, Any]]:
+    """Find a temporal coordinate from CF reference-time units.
+
+    CF hints are used only to choose between otherwise valid candidates.
+    """
+    candidates = [
+        (name, variable)
+        for name, variable in ds.variables.items()
+        if is_cf_reference_time(variable)
+    ]
+    if not candidates:
+        return None
+
+    def priority(candidate: Tuple[str, Any]) -> int:
+        name, variable = candidate
+        return ((4 if name.lower() == "time" else 0)
+                + (2 if str(getattr(variable, "axis", "")).upper() == "T" else 0)
+                + (1 if str(getattr(variable, "standard_name", "")).lower() == "time" else 0))
+
+    return max(candidates, key=priority)
+
 def read_netcdf_metadata(path: Path) -> Dict[str, Any]:
     metadata: Dict[str, Any] = {
         "global": {},
@@ -209,8 +244,10 @@ def read_netcdf_metadata(path: Path) -> Dict[str, Any]:
                 "cell_methods": getattr(variable, "cell_methods", None),
             }
 
-        if "time" in ds.variables:
-            time_var = ds.variables["time"]
+        time_coordinate = find_time_variable(ds)
+        if time_coordinate:
+            time_name, time_var = time_coordinate
+            metadata["time"]["name"] = time_name
             metadata["time"]["count"] = int(len(time_var))
             units = getattr(time_var, "units", None)
             calendar = getattr(time_var, "calendar", "standard")
