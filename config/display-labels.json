@@ -16,6 +16,7 @@
       "div-RdBu": "Diverging Red → Blue", "div-RdBu-inv": "Diverging Blue → Red"
     },
     "portalTitles": {
+      "gridded_daily": "Daily Gridded Meteorological Datasets",
       "prism": "BC PRISM",
       "canada_mosaic": "Canada Mosaic",
       "vicgl": "Gridded Hydrologic Model Output (VICGL)",

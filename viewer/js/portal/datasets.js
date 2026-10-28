@@ -190,7 +190,12 @@ export function createDatasetController({
       Number.isFinite(rendering.max)
         ? { min: Number(rendering.min), max: Number(rendering.max) }
         : null;
-    applyLayerScaleDefaults(fileRange || detailsRange);
+    const baseRange = fileRange || detailsRange;
+    applyLayerScaleDefaults({
+      min: Number.isFinite(rendering?.suggestedMin) ? rendering.suggestedMin : baseRange?.min ?? null,
+      max: Number.isFinite(rendering?.suggestedMax) ? rendering.suggestedMax : baseRange?.max ?? null,
+    });
+    ui.scaleType.value = rendering?.scaleType || "linear";
     syncPaletteEnabled();
   }
 
@@ -247,9 +252,9 @@ export function createDatasetController({
       applyPaletteAndScale(details, rendering);
       applyInitialViewerState?.();
       refreshInfoPanel();
-      updateMap();
+      const rendered = updateMap();
       viewerStateChanged?.();
-      setStatus("Ready");
+      if (rendered) setStatus("Ready");
     } catch (err) {
       console.error(err);
       setStatus(`Error: ${err.message}`, true);
