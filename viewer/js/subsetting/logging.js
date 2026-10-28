@@ -25,13 +25,11 @@ export function createSubsetLogger() {
     };
     subsetRuntimeLog.push(record);
     window.__subsetRuntimeLog = subsetRuntimeLog;
-    console.log('[subset-runtime]', record);
   }
 
   function logSubsetPerf(record) {
     subsetPerfLog.push(record);
     window.__subsetPerfLog = subsetPerfLog;
-    console.log('[subset-perf]', record);
   }
 
   return {
