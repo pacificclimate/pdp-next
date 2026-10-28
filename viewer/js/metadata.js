@@ -42,6 +42,11 @@ function summarySections(dataset) {
       ['Calendar', time.calendar],
       ['Units', time.units],
     ]],
+    ['Time ordering', [
+      ['Source time coordinate order', dataset?.timeCoordinateOrder],
+      ['Viewer display order', 'chronological'],
+      ['Download order', dataset?.timeCoordinateOrder],
+    ]],
     ['Global attributes', Object.entries(global)
       .filter(([key]) => key.toLowerCase() !== 'history')
       .sort(([first], [second]) => first.localeCompare(second))],
@@ -100,6 +105,11 @@ export function formatMetadataMarkdown(dataset) {
     ['Units', time.units],
   ]));
 
+  lines.push(...metadataLines('Time ordering', [
+    ['Source time coordinate order', dataset?.timeCoordinateOrder],
+    ['Viewer display order', 'chronological'],
+    ['Download order', dataset?.timeCoordinateOrder],
+  ]));
   const globalFields = Object.entries(global)
     .filter(([key]) => key.toLowerCase() !== 'history')
     .sort(([first], [second]) => first.localeCompare(second));

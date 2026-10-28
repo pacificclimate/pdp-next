@@ -181,6 +181,36 @@
   gap: 8px;
 }
 
+.subset-download-order-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--pcic-accent);
+  background: var(--bg-hover);
+  color: var(--text-dark);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.subset-download-order-notice[hidden] {
+  display: none;
+}
+
+.subset-download-order-notice-icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--pcic-blue);
+  color: var(--bg-panel);
+  font-weight: 700;
+  line-height: 1;
+}
+
 .time-mode-btn {
   flex: 1;
   padding: 8px;

@@ -42,6 +42,7 @@ export const subsetTimeEnd = document.getElementById('subsetTimeEnd');
 export const subsetSpatialMode = document.getElementById('subsetSpatialMode');
 export const subsetClearDraw = document.getElementById('subsetClearDraw');
 export const subsetDownloadBtn = document.getElementById('subsetDownloadBtn');
+export const subsetDownloadOrderNotice = document.getElementById('subsetDownloadOrderNotice');
 
 const STATUS_SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const DEFAULT_READY_STATUS = 'Ready';
