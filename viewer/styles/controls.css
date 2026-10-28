@@ -92,6 +92,12 @@
   box-shadow: 0 0 0 1px rgba(211, 47, 47, 0.15);
 }
 
+.color-row input.is-adjusted {
+  border-color: var(--pcic-accent);
+  background: var(--bg-hover);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pcic-accent) 25%, transparent);
+}
+
 @keyframes subset-time-shake {
   0%,
   100% {
@@ -250,6 +256,197 @@
   font-size: 13px;
   font-weight: 600;
   text-align: center;
+  border: 1px solid transparent;
+}
+
+.time-value[aria-invalid="true"] {
+  border-color: #b42318;
+}
+
+.time-entry-notice {
+  margin: -3px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.time-value[readonly] {
+  cursor: pointer;
+}
+
+.time-value-row {
+  position: relative;
+}
+
+.subset-time-field {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+
+.color-row .subset-time-field input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  padding-right: 10px !important;
+  border: 0;
+  border-radius: 0;
+}
+
+.subset-time-field .time-calendar-btn {
+  position: static;
+  flex: 0 0 38px;
+  width: 38px;
+  height: auto;
+  transform: none;
+  border-radius: 0;
+}
+
+
+.time-value-row .time-value {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.time-calendar-btn {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.time-calendar-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.time-calendar-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+
+.time-calendar {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+}
+
+.time-calendar[hidden] {
+  display: none;
+}
+
+.time-calendar-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+}
+
+.time-calendar-controls select {
+  min-width: 0;
+}
+
+.time-calendar-close {
+  width: 30px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.time-calendar-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-dark);
+}
+
+.time-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.time-calendar-days button {
+  min-height: 30px;
+  padding: 3px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+  color: var(--text-dark);
+  cursor: pointer;
+  font: inherit;
+}
+
+.time-calendar-days button:hover {
+  background: var(--bg-hover);
+}
+
+.time-calendar-days button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  background: var(--bg-main);
+}
+
+.time-calendar-days button[aria-pressed="true"] {
+  border-color: var(--pcic-accent);
+  background: var(--pcic-accent);
+  color: var(--bg-panel);
+}
+
+
+.time-option-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+}
+
+.time-option-list[hidden] {
+  display: none;
+}
+
+.time-option-list button {
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+  color: var(--text-dark);
+  cursor: pointer;
+  font: inherit;
+}
+
+.time-option-list button:hover {
+  background: var(--bg-hover);
+}
+
+.time-option-list button[aria-selected="true"] {
+  border-color: var(--pcic-accent);
+  background: var(--pcic-accent);
+  color: var(--bg-panel);
 }
 
 .info-row {
@@ -417,4 +614,24 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.calendar-dismiss-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.calendar-dismiss-layer[hidden] {
+  display: none;
+}
+
+.time-calendar {
+  position: relative;
+  z-index: 1001;
 }
