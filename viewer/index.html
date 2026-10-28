@@ -32,7 +32,7 @@
               <span class="selection-summary-label">Time</span>
               <span class="selection-summary-value" id="timeInfo">—</span>
             </div>
-            <button class="btn btn-secondary selection-metadata-btn" id="metadataBtn" type="button" title="Open metadata for the selected file in a new tab">Metadata ↗</button>
+            <button class="btn btn-secondary selection-metadata-btn" id="metadataBtn" type="button" title="View metadata for the selected file">Metadata</button>
           </section>
         </div>
       </div>
@@ -218,6 +218,21 @@
       <div class="choice-dialog-actions">
         <button id="largeSubsetContinueBtn" class="btn btn-secondary" value="continue" type="submit">Continue subset generation</button>
         <button id="largeSubsetFullBtn" class="btn btn-primary" value="full" type="submit">Switch to full time download</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="metadataDialog" class="metadata-dialog" aria-labelledby="metadataDialogTitle">
+    <form method="dialog" class="metadata-dialog-card">
+      <div class="metadata-dialog-header">
+        <h2 id="metadataDialogTitle" class="metadata-dialog-title">Dataset metadata</h2>
+        <button class="metadata-dialog-close" type="submit" value="close" aria-label="Close metadata">×</button>
+      </div>
+      <div id="metadataSummary" class="metadata-summary" aria-label="Metadata summary"></div>
+      <div class="metadata-downloads" aria-label="Metadata downloads">
+        <a id="metadataMarkdownDownload" class="btn btn-secondary" href="#">Download Markdown (.md)</a>
+        <a id="metadataJsonDownload" class="btn btn-secondary" href="#">Download JSON (.json)</a>
+        <a id="metadataNcmlDownload" class="btn btn-secondary" href="#" target="_blank" rel="noopener">Download NcML (XML)</a>
       </div>
     </form>
   </dialog>

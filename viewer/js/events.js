@@ -1,4 +1,5 @@
 import { buildPortalUrl } from './core/config.js';
+import { createMetadataDialogController } from './metadata.js';
 import {
   timeModeBtns,
   timeSlider,
@@ -9,6 +10,11 @@ import {
   paletteSelect,
   portalSelect,
   metadataBtn,
+  metadataDialog,
+  metadataSummary,
+  metadataMarkdownDownload,
+  metadataJsonDownload,
+  metadataNcmlDownload,
   crsSelect,
   subsetTimeModeInputs,
   subsetSpatialMode,
@@ -43,6 +49,13 @@ export function wireEvents({
   viewerStateChanged
 }) {
   let lastAppliedTimeSliderValue = null;
+  const metadataDialogController = createMetadataDialogController({
+    dialog: metadataDialog,
+    summary: metadataSummary,
+    markdownDownload: metadataMarkdownDownload,
+    jsonDownload: metadataJsonDownload,
+    ncmlDownload: metadataNcmlDownload,
+  });
 
   function refreshTimeSelectionIfChanged(nextIndex) {
     const currentIndex = getSelectedTimeIndex();
@@ -135,7 +148,7 @@ export function wireEvents({
 
   metadataBtn.addEventListener('click', () => {
     if (!state.currentDataset) return alert('Please select a dataset first');
-    window.open(state.currentDataset.ncmlUrl, '_blank', 'noopener');
+    metadataDialogController.show(state.currentDataset);
   });
 
   crsSelect.addEventListener('change', () => {

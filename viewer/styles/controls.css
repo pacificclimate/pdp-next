@@ -294,3 +294,97 @@
   gap: 12px;
   justify-content: flex-end;
 }
+
+.metadata-dialog {
+  border: none;
+  border-radius: var(--radius-md);
+  max-width: 760px;
+  padding: 0;
+  width: calc(100% - 32px);
+}
+
+.metadata-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.metadata-dialog-card {
+  background: var(--bg-panel);
+  margin: 0;
+  padding: 20px;
+}
+
+.metadata-dialog-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.metadata-dialog-title {
+  color: var(--text-dark);
+  font-size: 18px;
+  margin: 0;
+}
+
+.metadata-dialog-close {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 28px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.metadata-dialog-intro {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.metadata-summary {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  color: var(--text-dark);
+  margin: 16px 0;
+  max-height: min(52vh, 520px);
+  overflow: auto;
+  padding: 16px;
+}
+
+.metadata-section + .metadata-section {
+  border-top: 1px solid var(--border-color);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.metadata-section h3 {
+  color: var(--pcic-blue);
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+.metadata-section dl {
+  display: grid;
+  font-size: 13px;
+  gap: 6px 16px;
+  grid-template-columns: minmax(110px, max-content) minmax(0, 1fr);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.metadata-label {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.metadata-value {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.metadata-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
