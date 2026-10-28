@@ -218,6 +218,19 @@
                 <option value="draw_point">Point</option>
               </select>
             </div>
+            <div id="bboxEditor" hidden>
+              <p class="bbox-crs">Selection coordinates: <span id="bboxCrs"></span></p>
+              <div class="bbox-fields">
+                <label><span id="bboxMinXLabel">Min X</span> <input id="bboxMinX" type="text" inputmode="decimal" aria-describedby="bboxError" /></label>
+                <label><span id="bboxMinYLabel">Min Y</span> <input id="bboxMinY" type="text" inputmode="decimal" aria-describedby="bboxError" /></label>
+                <label id="bboxMaxXField">Max X <input id="bboxMaxX" type="text" inputmode="decimal" aria-describedby="bboxError" /></label>
+                <label id="bboxMaxYField">Max Y <input id="bboxMaxY" type="text" inputmode="decimal" aria-describedby="bboxError" /></label>
+              </div>
+              <p id="bboxError" class="bbox-error" role="status"></p>
+              <button id="bboxApply" class="btn btn-secondary" type="button">Apply</button>
+              <label class="choice-option"><input id="bboxShowCoordinates" type="checkbox" /> <span id="bboxShowLabel">Show bbox coordinates</span></label>
+              <p id="bboxHint" class="bbox-crs">Drag a corner to resize; drag inside to move.</p>
+            </div>
             <button class="btn btn-secondary" id="subsetClearDraw" type="button">Clear drawing</button>
 
             <p id="subsetDownloadOrderNotice" class="subset-download-order-notice" role="note" hidden>

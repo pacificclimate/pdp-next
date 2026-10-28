@@ -1,5 +1,6 @@
 import { cellValueRequest } from './cell-value.js';
 import { installPointerCoordinates } from './coordinates.js';
+import { reprojectSubsetFeatures } from '../subsetting/bbox.js';
 import { WMS_VERSION, paletteLabel } from "../core/config.js";
 import { formatDisplayUnits } from "../core/units.js";
 
@@ -241,22 +242,6 @@ export function createMapController({
     return validExtent(geographicExtent) ? geographicExtent : null;
   }
 
-  function reprojectSubsetFeatures(previousCrs, nextCrs) {
-    subsetDrawSource.getFeatures().forEach((feature) => {
-      const geometry = feature.getGeometry();
-      if (!geometry) return;
-      let sourceGeometry = feature.get("selectionGeometry");
-      let sourceCrs = feature.get("selectionCrs");
-      if (!sourceGeometry?.clone || !sourceCrs) {
-        sourceGeometry = geometry.clone();
-        sourceCrs = previousCrs;
-        feature.set("selectionGeometry", sourceGeometry.clone(), true);
-        feature.set("selectionCrs", sourceCrs, true);
-      }
-      feature.setGeometry(sourceGeometry.clone().transform(sourceCrs, nextCrs));
-    });
-  }
-
   function setMapProjection(nextCrs) {
     const code = String(nextCrs || "")
       .trim()
@@ -273,7 +258,7 @@ export function createMapController({
       previousCenter,
       previousResolution,
     );
-    reprojectSubsetFeatures(previousCrs, code);
+    reprojectSubsetFeatures(olRef, subsetDrawSource, previousCrs, code);
     currentCrs = code;
     const nextCenter = projectedView?.center || olRef.proj.transform(
       DEFAULT_VIEW_CENTER_LONLAT,
