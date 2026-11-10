@@ -1,3 +1,4 @@
+import { getDrawnSelection } from './subsetting/selection.js';
 import "ol/ol.css";
 import "../viewer.css";
 import proj4 from "proj4";
@@ -64,6 +65,7 @@ import {
   subsetDownloadOrderNotice,
   subsetSpatialMode,
   pointerCoordinates,
+  bboxUi,
   setStatus,
   startStatusSpinner,
   stopStatusSpinner,
@@ -298,6 +300,7 @@ function currentViewerUrlState() {
   const view = getViewExtent();
   const selectedTime = getSelectedTime();
   return {
+    selection: getDrawnSelection(subsetDrawSource, state.subset.spatialMode),
     dataset: state.currentDataset?.urlPath || null,
     variable: state.selectedLayer?.name || state.variable,
     view,
@@ -334,6 +337,8 @@ function markViewerUrlReady() {
 }
 
 map.on('moveend', scheduleViewerUrlSync);
+['addfeature', 'changefeature', 'clear', 'removefeature'].forEach((event) =>
+  subsetDrawSource.on(event, scheduleViewerUrlSync));
 
 let cancelPendingSubsetStatus = () => {};
 
@@ -420,6 +425,7 @@ function loadSubsettingController() {
           state,
           portal,
           ui: {
+            ...bboxUi,
             subsetSpatialMode,
             subsetTimeModeFull,
             subsetTimeModeCurrent,
@@ -553,8 +559,14 @@ async function initializeViewer() {
   if (!initialUrlState.view) {
     fitMapToBbox4326(DEFAULT_CANADA_BBOX_4326);
   }
+  if (initialUrlState.selection && ol.proj.get(initialUrlState.selection.crs)) {
+    const controller = await loadSubsettingController();
+    if (controller.restoreSelection(initialUrlState.selection)) {
+      state.subset.spatialMode = initialUrlState.selection.type === 'bbox' ? 'draw_bbox' : 'draw_point';
+    }
+  }
   subsetSpatialMode.value = state.subset.spatialMode;
-  setSubsetDrawMode(state.subset.spatialMode);
+  await setSubsetDrawMode(state.subset.spatialMode);
   updateSubsetTimeInputsEnabled();
   await setActiveGroup(state.groupId);
 }

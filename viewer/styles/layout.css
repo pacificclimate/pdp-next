@@ -414,3 +414,13 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+
+.bbox-corner-label {
+  display: block;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: var(--overlay-bg);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
