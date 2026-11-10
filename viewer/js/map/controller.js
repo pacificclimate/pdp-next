@@ -184,9 +184,23 @@ export function createMapController({
     visible: true,
   });
   const DEFAULT_VIEW_CENTER_LONLAT = [-95, 62];
+  // Broad North American envelope with room for Canada's offshore EEZ; avoid repeated worlds.
+  const NAVIGATION_EXTENT_4326 = [-180, 10, -40, 90];
+  function navigationExtent(crs) {
+    const extent = [...NAVIGATION_EXTENT_4326];
+    const world = olRef.proj.get(crs)?.getWorldExtent();
+    // Mercator cannot represent the pole. Respect its geographic latitude limit.
+    if (world) {
+      extent[1] = Math.max(extent[1], world[1]);
+      extent[3] = Math.min(extent[3], world[3]);
+    }
+    return olRef.proj.transformExtent(extent, 'EPSG:4326', crs, 16);
+  }
   let currentCrs = String(portal.defaultCrs || "EPSG:3857").toUpperCase();
   let mapView = new olRef.View({
     projection: currentCrs,
+    extent: navigationExtent(currentCrs),
+    smoothExtentConstraint: false,
     center: olRef.proj.transform(
       DEFAULT_VIEW_CENTER_LONLAT,
       "EPSG:4326",
@@ -267,6 +281,8 @@ export function createMapController({
     );
     mapView = new olRef.View({
       projection: currentCrs,
+      extent: navigationExtent(currentCrs),
+      smoothExtentConstraint: false,
       center: nextCenter,
       ...(projectedView
         ? { resolution: projectedView.resolution }

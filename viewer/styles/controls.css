@@ -637,9 +637,18 @@
   z-index: 1001;
 }
 
+#bboxEditor .color-row {
+  margin-bottom: 6px;
+}
+
+#bboxEditor .color-row select {
+  min-width: 0;
+  padding: 6px;
+}
+
 .bbox-fields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 6px 10px;
 }
 

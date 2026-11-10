@@ -53,7 +53,8 @@ export const pointerCoordinates = document.getElementById('pointerCoordinates');
 export const subsetSpatialMode = document.getElementById('subsetSpatialMode');
 export const bboxUi = Object.fromEntries([
   'bboxEditor', 'bboxCrs', 'bboxMinX', 'bboxMinY', 'bboxMaxX', 'bboxMaxY',
-  'bboxError', 'bboxApply', 'bboxShowCoordinates',
+  'bboxError', 'bboxApply', 'bboxShowCoordinates', 'bboxEditCrs', 'bboxSummary',
+  'bboxMaxXLabel', 'bboxMaxYLabel',
   'bboxMinXLabel', 'bboxMinYLabel', 'bboxMaxXField', 'bboxMaxYField', 'bboxShowLabel', 'bboxHint',
 ].map((id) => [id, document.getElementById(id)]));
 export const subsetClearDraw = document.getElementById('subsetClearDraw');

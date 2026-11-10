@@ -10,6 +10,9 @@ export function createSubsetDrawController({
   let sketch = null;
   let sketchOriginal = null;
   let lastSyncedGeometry = null;
+  let lastSyncedCoordinates = [];
+  let editorCrs = getCurrentCrs();
+  ui.bboxEditCrs.value = editorCrs;
   let drag = null;
   let lastPointerEvent = null;
   let previousCursor = null;
@@ -29,6 +32,11 @@ export function createSubsetDrawController({
   });
 
   function currentFeature() { return sketch || subsetDrawSource.getFeatures()[0]; }
+  function geographicEditor() { return editorCrs === 'EPSG:4326' || editorCrs === 'CRS:84'; }
+  function roundCoordinates(coordinates, crs) {
+    const decimals = crs === 'EPSG:4326' || crs === 'CRS:84' ? 5 : 0;
+    return coordinates.map((value) => Number(value.toFixed(decimals)));
+  }
 
   function setSelectionCursor(cursor = '') {
     if (cursor) {
@@ -79,19 +87,35 @@ export function createSubsetDrawController({
     const isPoint = mode === 'draw_point' && original?.getType() === 'Point';
     const editable = isBbox || isPoint;
     ui.bboxEditor.hidden = !editable;
-    ui.bboxMinXLabel.textContent = isPoint ? 'X' : 'Min X';
-    ui.bboxMinYLabel.textContent = isPoint ? 'Y' : 'Min Y';
+    const geographic = geographicEditor();
+    ui.bboxMinXLabel.textContent = isPoint ? (geographic ? 'Longitude' : 'X (m)')
+      : geographic ? 'Min longitude' : 'Southwest X (m)';
+    ui.bboxMinYLabel.textContent = isPoint ? (geographic ? 'Latitude' : 'Y (m)')
+      : geographic ? 'Min latitude' : 'Southwest Y (m)';
+    ui.bboxMaxXLabel.textContent = geographic ? 'Max longitude' : 'Northeast X (m)';
+    ui.bboxMaxYLabel.textContent = geographic ? 'Max latitude' : 'Northeast Y (m)';
     ui.bboxMaxXField.hidden = isPoint;
     ui.bboxMaxYField.hidden = isPoint;
     ui.bboxShowLabel.textContent = isPoint ? 'Show point coordinates' : 'Show bbox coordinates';
-    ui.bboxHint.textContent = isPoint ? 'Drag the point to move.' : 'Drag a corner to resize; drag inside to move.';
+    ui.bboxHint.textContent = isPoint ? 'Drag the point to move.'
+      : `${geographic ? '' : 'Edit the southwest and northeast corners; the selection stays a lon/lat rectangle. '}`
+        + 'Drag a corner to resize; drag inside to move.';
     if (editable && original !== lastSyncedGeometry) {
       lastSyncedGeometry = original;
-      const coordinates = isPoint ? original.getCoordinates() : original.getExtent();
+      const coordinates = roundCoordinates(isPoint
+        ? olRef.proj.transform(original.getCoordinates(), crs, editorCrs)
+        : [original.getExtent().slice(0, 2), original.getExtent().slice(2)]
+          .flatMap((corner) => olRef.proj.transform(corner, crs, editorCrs)), editorCrs);
       fields.forEach((field, index) => { field.value = coordinates[index] === undefined ? '' : String(coordinates[index]); });
-      ui.bboxCrs.textContent = crs;
-      ui.bboxError.textContent = '';
-      fields.forEach((field) => field.setAttribute('aria-invalid', 'false'));
+      lastSyncedCoordinates = coordinates;
+      showInputError();
+    }
+    if (editable) {
+      const extent = roundCoordinates(original.clone().transform(crs, sourceCrs).getExtent(), sourceCrs);
+      ui.bboxCrs.textContent = sourceCrs;
+      ui.bboxSummary.textContent = isPoint
+        ? `Lon: ${extent[0]} · Lat: ${extent[1]}`
+        : `Lon: ${extent[0]} to ${extent[2]} · Lat: ${extent[1]} to ${extent[3]}`;
     }
     if (!editable) lastSyncedGeometry = null;
     labels.forEach((overlay, index) => {
@@ -99,12 +123,15 @@ export function createSubsetDrawController({
         overlay.setPosition(undefined); return;
       }
       const corner = isPoint ? original.getCoordinates() : bboxCorners(original.getExtent())[index];
-      overlay.getElement().textContent = formatCoordinatePair(corner, crs);
-      overlay.setPosition(olRef.proj.transform(corner, crs, getCurrentCrs()));
+      const projected = olRef.proj.transform(corner, crs, getCurrentCrs());
+      overlay.getElement().textContent = `${getCurrentCrs()} · ${formatCoordinatePair(projected, getCurrentCrs())}`;
+      overlay.setPosition(projected);
     });
   }
 
   function setBbox(feature, extent, crs) {
+    extent = roundCoordinates(extent, crs);
+    if (parseBboxInput(extent).error) return;
     const corners = bboxCorners(extent);
     const original = new olRef.geom.Polygon([[...corners, [...corners[0]]]]);
     feature.set('selectionGeometry', original, true);
@@ -114,6 +141,7 @@ export function createSubsetDrawController({
   }
 
   function setPoint(feature, coordinates, crs) {
+    coordinates = roundCoordinates(coordinates, crs);
     const original = new olRef.geom.Point(coordinates);
     feature.set('selectionGeometry', original, true);
     feature.set('selectionCrs', crs, true);
@@ -121,23 +149,76 @@ export function createSubsetDrawController({
     sync();
   }
 
+  function coordinateBoundsError(coordinates, crs) {
+    const bounds = olRef.proj.get(crs)?.getExtent();
+    if (!bounds) return null;
+    for (let axis = 0; axis < 2; axis += 1) {
+      if (coordinates.some((value, index) => index % 2 === axis
+        && (value < bounds[axis] || value > bounds[axis + 2]))) {
+        return `${axis === 0 ? 'X' : 'Y'} must be between ${bounds[axis]} and ${bounds[axis + 2]} in ${crs}.`;
+      }
+    }
+    return null;
+  }
+
+  function showInputError(error = '') {
+    ui.bboxError.textContent = error;
+    fields.forEach((field) => field.setAttribute('aria-invalid', String(!!error)));
+  }
+
   function apply() {
     const feature = currentFeature();
     if (sketch || !feature || (mode !== 'draw_bbox' && mode !== 'draw_point')) return;
     const isPoint = mode === 'draw_point';
     const values = fields.slice(0, isPoint ? 2 : 4).map((field) => field.value);
-    const point = values.map((value) => value.trim() === '' ? NaN : Number(value));
-    const result = isPoint
-      ? { extent: point, error: point.every(Number.isFinite) ? null : 'Enter two finite numbers.' }
-      : parseBboxInput(values);
-    ui.bboxError.textContent = result.error || '';
-    fields.forEach((field) => field.setAttribute('aria-invalid', String(!!result.error)));
-    if (!result.error) {
-      const update = isPoint ? setPoint : setBbox;
-      update(feature, result.extent, feature.get('selectionCrs'));
+    const input = values.map((value) => value.trim() === '' ? NaN : Number(value));
+    let error = input.every(Number.isFinite) ? null
+      : isPoint ? 'Enter two finite numbers.' : 'Enter four finite numbers.';
+    const roundedInput = roundCoordinates(input, editorCrs);
+    if (!error && input.some((value, index) => value !== roundedInput[index])) {
+      error = geographicEditor() ? 'Use at most 5 decimal places.' : 'Use whole metres.';
     }
+    error ||= coordinateBoundsError(input, editorCrs);
+    showInputError(error || '');
+    if (error) return;
+
+    // Unchanged fields must not round-trip through a projection again.
+    if (input.length === lastSyncedCoordinates.length
+      && input.every((value, index) => value === lastSyncedCoordinates[index])) return;
+
+    const canonicalCrs = isPoint ? feature.get('selectionCrs') : sourceCrs;
+    // Convert corner points, not a projected Min/Max extent. Avoid round-trip
+    // drift in untouched corners.
+    const coordinates = roundCoordinates(isPoint ? olRef.proj.transform(input, editorCrs, canonicalCrs)
+      : [input.slice(0, 2), input.slice(2)].flatMap((corner, index) => {
+        const offset = index * 2;
+        if (feature.get('selectionCrs') === canonicalCrs
+          && corner.every((value, axis) => value === lastSyncedCoordinates[offset + axis])) {
+          return feature.get('selectionGeometry').getExtent().slice(offset, offset + 2);
+        }
+        return olRef.proj.transform(corner, editorCrs, canonicalCrs);
+      }), canonicalCrs);
+    const lonlat = isPoint ? olRef.proj.transform(coordinates, canonicalCrs, sourceCrs) : coordinates;
+    error = lonlat.every(Number.isFinite) ? coordinateBoundsError(lonlat, sourceCrs)
+      : 'Coordinates cannot be transformed to EPSG:4326.';
+    if (canonicalCrs !== sourceCrs) error ||= coordinateBoundsError(coordinates, canonicalCrs);
+    if (!error && !isPoint) {
+      error = parseBboxInput(coordinates).error;
+      if (error && !geographicEditor()) error = 'Check the corner order: southwest first, northeast second.';
+    }
+    showInputError(error || '');
+    if (error) return;
+
+    const update = isPoint ? setPoint : setBbox;
+    update(feature, coordinates, canonicalCrs);
   }
   ui.bboxApply.addEventListener('click', apply);
+  ui.bboxEditCrs.addEventListener('change', () => {
+    if (!olRef.proj.get(ui.bboxEditCrs.value)) { ui.bboxEditCrs.value = editorCrs; return; }
+    editorCrs = ui.bboxEditCrs.value;
+    lastSyncedGeometry = null;
+    sync();
+  });
   fields.forEach((field) => field.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') { event.preventDefault(); apply(); }
   }));
@@ -230,8 +311,8 @@ export function createSubsetDrawController({
       ...(mode === 'draw_bbox' ? { geometryFunction(coordinates, geometry) {
         const corners = [coordinates[0], coordinates[coordinates.length - 1]]
           .map((corner) => olRef.proj.transform(corner, getCurrentCrs(), sourceCrs));
-        const extent = [Math.min(corners[0][0], corners[1][0]), Math.min(corners[0][1], corners[1][1]),
-          Math.max(corners[0][0], corners[1][0]), Math.max(corners[0][1], corners[1][1])];
+        const extent = roundCoordinates([Math.min(corners[0][0], corners[1][0]), Math.min(corners[0][1], corners[1][1]),
+          Math.max(corners[0][0], corners[1][0]), Math.max(corners[0][1], corners[1][1])], sourceCrs);
         const ring = bboxCorners(extent);
         sketchOriginal = new olRef.geom.Polygon([[...ring, [...ring[0]]]]);
         const display = bboxDisplayGeometry(olRef, extent, sourceCrs, getCurrentCrs());
@@ -246,6 +327,9 @@ export function createSubsetDrawController({
     });
     subsetDrawInteraction.on('drawstart', (event) => {
       subsetDrawSource.clear();
+      editorCrs = getCurrentCrs();
+      ui.bboxEditCrs.value = editorCrs;
+      lastSyncedGeometry = null;
       sketch = event.feature;
       if (mode === 'draw_bbox') {
         sketch.set('selectionGeometry', sketchOriginal, true);
@@ -270,6 +354,8 @@ export function createSubsetDrawController({
 
   function restoreSelection(selection) {
     if (!validSelection(selection) || !olRef.proj.get(selection.crs)) return false;
+    if (coordinateBoundsError(selection.coordinates, selection.crs)) return false;
+    if (selection.type === 'bbox' && parseBboxInput(roundCoordinates(selection.coordinates, selection.crs)).error) return false;
     setSubsetDrawMode(selection.type === 'bbox' ? 'draw_bbox' : 'draw_point');
     clearSubsetDrawing();
     const feature = new olRef.Feature();
@@ -295,7 +381,7 @@ export function createSubsetDrawController({
     const extent = original?.clone && crs
       ? original.clone().transform(crs, 'EPSG:4326').getExtent()
       : olRef.proj.transformExtent(feature.getGeometry().getExtent(), getCurrentCrs(), 'EPSG:4326', 8);
-    const [west, south, east, north] = extent;
+    const [west, south, east, north] = roundCoordinates(extent, sourceCrs);
     return { west, south, east, north };
   }
 
