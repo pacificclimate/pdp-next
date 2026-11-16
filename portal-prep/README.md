@@ -133,14 +133,62 @@ python3 scripts/update-portal-meta.py \
   --prune
 ```
 
+### Rebuilding after menu or display-label changes
+
+Portal-specific menu order and grouping are configured in:
+
+```text
+portal_meta_builder/portals.py
+```
+
+Steward-editable portal titles, menu headings, and display labels for datasets
+or sources, models, variables, scenarios, and runs are configured in the
+Git-tracked source:
+
+```text
+config/display-labels.json
+```
+
+These mappings affect presentation only. Changing a display label does not
+rename the underlying dataset, filename, metadata identifier, or THREDDS path.
+
+After changing portal-specific menu configuration or stable menu-key derivation,
+regenerate the affected portal metadata:
+
+```bash
+python3 scripts/update-portal-meta.py --portal <portal>
+```
+
+For example:
+
+```bash
+python3 scripts/update-portal-meta.py --portal prism
+```
+
+The resulting `portal-meta/<portal>.json` is generated output and should not be
+edited directly.
+
+Publish label-only changes from that source beside the metadata instead:
+
+```bash
+install -m 0644 config/display-labels.json /portal-meta/display-labels.json
+```
+
+They take effect after the viewer is refreshed; they do not require metadata or
+viewer-image rebuilds.
+
+See the top-level [`README.md`](../README.md#customizing-display-labels) for
+details on the distinction between application-wide and portal-specific
+display labels.
+
 ## Portal file patterns
 
 `portal-file-patterns/` is the source of truth for portal membership. Each
 `<portal>.txt` accepts:
 
-- An absolute file path
-- A glob containing `*`, `?`, or `[` patterns
-- An exclusion prefixed with `!`
+* An absolute file path
+* A glob containing `*`, `?`, or `[` patterns
+* An exclusion prefixed with `!`
 
 Blank lines and lines beginning with `#` are ignored. Bash extglob syntax such
 as `!(...)` is not supported. Basenames must be unique within a portal because

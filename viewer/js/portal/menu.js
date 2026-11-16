@@ -1,6 +1,8 @@
 import {
-  DEFAULT_VARIABLE_LABELS,
   ENABLED_PORTALS,
+  defaultVariableLabel,
+  menuDisplayLabel,
+  portalTitle,
 } from '../core/config.js';
 
 function setActiveMenuItem(el) {
@@ -77,14 +79,17 @@ export function createMenuController({
     if (!menuTree || typeof menuTree !== 'object') throw new Error('portal-meta is missing menu tree');
     const basenameIndex = buildBasenameIndex(metaPayload);
     const selectableItems = [];
+    const menuOrder = metaPayload?.portal?.menuSchema?.order || [];
+    const displayPath = (path) => path.map(
+      (key, index) => menuDisplayLabel(portal.id, menuOrder[index], key),
+    );
 
     function variableMenuLabel(entry, fallbackLabel = '') {
       const variableCode = String(entry?.metadata?.primary?.name || '').trim();
-      const menuLabel = String(entry?.menuFields?.variable || fallbackLabel || variableCode).trim();
+      const menuKey = String(entry?.menuFields?.variable || fallbackLabel || variableCode).trim();
+      const menuLabel = menuDisplayLabel(portal.id, "variable", menuKey);
       if (menuLabel.toLowerCase() !== variableCode.toLowerCase()) return menuLabel;
-      return DEFAULT_VARIABLE_LABELS[variableCode]
-        || DEFAULT_VARIABLE_LABELS[variableCode.toLowerCase()]
-        || menuLabel;
+      return defaultVariableLabel(variableCode || menuLabel);
     }
 
     async function selectDataset(element, entry, basename, selectionLabel) {
@@ -106,8 +111,8 @@ export function createMenuController({
     }
 
     function registerSelectable(element, entry, basename, selectionPath) {
-      const selectionLabel = selectionPath.slice(0, -1).join(' › ')
-        || selectionPath.join(' › ');
+      const labels = displayPath(selectionPath);
+      const selectionLabel = labels.slice(0, -1).join(' › ') || labels.join(' › ');
       selectableItems.push({ element, entry, basename, selectionLabel });
       element.addEventListener('click', () => {
         selectDataset(element, entry, basename, selectionLabel);
@@ -141,6 +146,7 @@ export function createMenuController({
 
     function renderNode(nodeLabel, nodeValue, containerUl, path = []) {
       const pathNow = [...path, nodeLabel];
+      const displayLabel = menuDisplayLabel(portal.id, menuOrder[path.length], nodeLabel);
       const pathKey = pathNow.join('||');
       const expandByDefault = openPath.has(pathKey);
 
@@ -187,7 +193,7 @@ export function createMenuController({
       }
 
       if (!nodeValue || typeof nodeValue !== 'object') return;
-      const { item, header, children } = createMenuHeaderLi(nodeLabel);
+      const { item, header, children } = createMenuHeaderLi(displayLabel);
       containerUl.appendChild(item);
       wireMenuHeaderToggle(header, children, expandByDefault);
       Object.keys(nodeValue).sort((a, b) => a.localeCompare(b)).forEach((childLabel) => renderNode(childLabel, nodeValue[childLabel], children, pathNow));
@@ -219,10 +225,9 @@ export function createMenuController({
     portalSelect.innerHTML = '';
     const ids = Array.from(new Set([...ENABLED_PORTALS.map((p) => p.id), portal.id])).filter(Boolean);
     ids.forEach((id) => {
-      const meta = ENABLED_PORTALS.find((p) => p.id === id);
       const opt = document.createElement('option');
       opt.value = id;
-      opt.textContent = meta?.title || id;
+      opt.textContent = portalTitle(id);
       portalSelect.appendChild(opt);
     });
     portalSelect.value = portal.id;
