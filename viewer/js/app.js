@@ -208,7 +208,8 @@ const {
   updateMap,
   setLayerOpacity,
   fitMapToBbox4326,
-  getViewBbox4326,
+  fitMapToExtent,
+  getViewExtent,
   populateCrsSelect,
 } = mapController;
 
@@ -257,19 +258,18 @@ function applyInitialViewerState() {
   syncPaletteEnabled();
 
   if (initialUrlState.view) {
-    const [west, south, east, north] = initialUrlState.view;
-    fitMapToBbox4326({ west, south, east, north });
+    fitMapToExtent(initialUrlState.view, initialUrlState.crs || getCurrentCrs());
   }
   initialViewerStatePending = false;
 }
 
 function currentViewerUrlState() {
-  const bbox = getViewBbox4326();
+  const view = getViewExtent();
   const selectedTime = getSelectedTime();
   return {
     dataset: state.currentDataset?.urlPath || null,
     variable: state.selectedLayer?.name || state.variable,
-    view: bbox ? [bbox.west, bbox.south, bbox.east, bbox.north] : null,
+    view,
     crs: getCurrentCrs(),
     palette: paletteSelect.value,
     style: styleSelect.value,
@@ -510,10 +510,7 @@ async function initializeViewer() {
     setMapProjection(initialUrlState.crs);
     crsSelect.value = getCurrentCrs();
   }
-  if (initialUrlState.view) {
-    const [west, south, east, north] = initialUrlState.view;
-    fitMapToBbox4326({ west, south, east, north });
-  } else {
+  if (!initialUrlState.view) {
     fitMapToBbox4326(DEFAULT_CANADA_BBOX_4326);
   }
   subsetSpatialMode.value = state.subset.spatialMode;
