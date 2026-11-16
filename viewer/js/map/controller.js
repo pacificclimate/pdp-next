@@ -1,4 +1,5 @@
 import { WMS_VERSION, paletteLabel } from "../core/config.js";
+import { formatDisplayUnits } from "../core/units.js";
 
 const PRECIP_VARIABLE_NAMES = new Set([
   "pr",
@@ -8,7 +9,6 @@ const PRECIP_VARIABLE_NAMES = new Set([
   "precipitation",
   "rainf",
 ]);
-const ANNUAL_FREQUENCY_HINT_RE = /\b(year|yearly|annual|ann|yr)\b/;
 
 export function reprojectViewState(olRef, sourceCrs, targetCrs, sourceCenter, sourceResolution) {
   if (!sourceCenter?.every(Number.isFinite) || !Number.isFinite(sourceResolution) || sourceResolution <= 0) {
@@ -29,6 +29,80 @@ export function reprojectViewState(olRef, sourceCrs, targetCrs, sourceCenter, so
   return { center, resolution: metersPerPixel / metersPerTargetUnit };
 }
 
+export function formatRenderingValue(value, places = null) {
+  if (value === null || value === undefined) return "Auto";
+  if (Number.isInteger(places) && places >= 0 && places <= 12) {
+    if (Number(Number(value).toFixed(places)) !== Number(value)) return String(value);
+    return Number(value).toLocaleString("en-US", { maximumFractionDigits: places });
+  }
+  if (Math.abs(Number(value)) < 0.01) return String(value);
+  return Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+export function getEffectiveRendering(rendering = {}, user = {}) {
+  const min = user.min ?? rendering.suggestedMin ?? rendering.min ?? null;
+  const max = user.max ?? rendering.suggestedMax ?? rendering.max ?? null;
+  return {
+    scaleType: user.scaleType || rendering.scaleType || "linear",
+    min, max,
+    palette: user.palette || rendering.palette || "default",
+    numColorBands: user.numColorBands ?? rendering.numColorBands ?? 100,
+    belowMinColor: rendering.belowMinColor || "transparent",
+    aboveMaxColor: rendering.aboveMaxColor || "0x202020",
+    style: user.style || rendering.style || "default-scalar",
+    opacity: user.opacity ?? rendering.opacity ?? 1,
+  };
+}
+
+export function validateRendering(config) {
+  if (config.scaleType === "log" && !(config.min > 0))
+    return "Logarithmic scale requires a minimum greater than 0.";
+  if (!Number.isFinite(config.min) || !Number.isFinite(config.max))
+    return "Minimum and maximum must be finite numbers.";
+  if (config.min >= config.max)
+    return "Minimum must be less than maximum.";
+  return null;
+}
+
+export function logMinForScaleSwitch(currentMin, rendering = {}) {
+  if (currentMin !== "" && Number(currentMin) > 0) return null;
+  const suggested = Number(rendering.suggestedMin);
+  if (Number.isFinite(suggested) && suggested > 0) return suggested;
+  const dataMin = Number(rendering.min);
+  return Number.isFinite(dataMin) && dataMin > 0 ? dataMin : 0.01;
+}
+
+export function renderingWmsParams(config, supportsPalette) {
+  const params = {
+    BELOWMINCOLOR: config.belowMinColor,
+    ABOVEMAXCOLOR: config.aboveMaxColor,
+  };
+  if (supportsPalette) {
+    params.PALETTE = config.palette;
+    params.NUMCOLORBANDS = config.numColorBands;
+  }
+  if (Number.isFinite(config.min) && Number.isFinite(config.max))
+    params.COLORSCALERANGE = `${config.min},${config.max}`;
+  if (config.scaleType === "log") params.LOGSCALE = "true";
+  return params;
+}
+
+export function buildWmsRequestParams(config, supportsPalette, layerName, requestCrs) {
+  const common = renderingWmsParams(config, supportsPalette);
+  return {
+    map: {
+      LAYERS: layerName, STYLES: config.style,
+      FORMAT: "image/png", TRANSPARENT: true, VERSION: WMS_VERSION,
+      CRS: requestCrs, ...common,
+    },
+    legend: {
+      request: "GetLegendGraphic", service: "WMS", version: WMS_VERSION,
+      format: "image/png", width: "122", height: "400", transparent: "true",
+      layer: layerName, style: config.style, ...common,
+    },
+  };
+}
+
 export function createMapController({
   portal,
   state,
@@ -44,6 +118,7 @@ export function createMapController({
     paletteSelect,
     scaleMin,
     scaleMax,
+    scaleType,
     numColors,
     styleSelect,
     legendPanel,
@@ -204,15 +279,9 @@ export function createMapController({
     return true;
   }
 
-  function formatLegendValue(value) {
-    if (value === null || value === undefined) return "Auto";
-    return Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
-  }
-
   function formatScaleInputValue(value) {
     if (!Number.isFinite(value)) return "";
-    if (Math.abs(value) >= 1000 || Number.isInteger(value)) return String(value);
-    return String(Number(value.toFixed(3)));
+    return String(value);
   }
 
   function normalizeColorBandCount(value) {
@@ -325,45 +394,21 @@ export function createMapController({
   function getLegendDisplayTitle() {
     const variable = String(state.variable || state.selectedLayer?.name || "").trim();
     const variableLabel = variable ? `${variable.charAt(0).toUpperCase()}${variable.slice(1)}` : "";
-    const rawUnits = String(state.currentDataset?.metadata?.primary?.units || "").trim();
-    const units = /^celsius$/i.test(rawUnits) ? "°C" : rawUnits;
+    const units = formatDisplayUnits(state.currentDataset?.metadata?.primary?.units);
     const timeCount = Number(state.currentDataset?.timeMetadata?.count || state.times?.length || 0);
     const period =
       timeCount === 1 ? "Annual " : timeCount === 12 ? "Monthly " : timeCount === 4 ? "Seasonal " : "";
     return `${period}${variableLabel}${units ? ` (${units})` : ""}` || "—";
   }
 
-  function updateLegend(styleName, palette, min, max, bands, supportsPalette) {
-    if (
-      !legendPanel ||
-      !legendImage ||
-      !state.currentDataset ||
-      !state.selectedLayer
-    )
-      return;
-    const params = new URLSearchParams({
-      request: "GetLegendGraphic",
-      service: "WMS",
-      version: WMS_VERSION,
-      format: "image/png",
-      width: "122",
-      height: "400",
-      transparent: "true",
-      layer: state.selectedLayer.name,
-      style: styleName,
-    });
-    if (supportsPalette) {
-      params.set("PALETTE", palette);
-      params.set("NUMCOLORBANDS", String(bands));
-      params.set("BELOWMINCOLOR", "transparent");
-      params.set("ABOVEMAXCOLOR", "0x202020");
-    }
-    if (min != null && max != null)
-      params.set("COLORSCALERANGE", `${min},${max}`);
+  function updateLegend(config, legendParams) {
+    if (!legendPanel || !legendImage || !state.currentDataset || !state.selectedLayer) return;
+    const params = new URLSearchParams(legendParams);
     legendImage.src = `${state.currentDataset.wmsBase}?${params.toString()}`;
     legendTitle.textContent = getLegendDisplayTitle();
-    legendMin.textContent = formatLegendValue(min);
-    legendMax.textContent = formatLegendValue(max);
+    const places = state.currentDataset?.rendering?.rangeDecimalPlaces;
+    legendMin.textContent = formatRenderingValue(config.min, places);
+    legendMax.textContent = formatRenderingValue(config.max, places);
     legendPanel.classList.remove("hidden");
   }
 
@@ -474,85 +519,42 @@ export function createMapController({
     return PRECIP_VARIABLE_NAMES.has(value);
   }
 
-  function getLogScaleMinFloor() {
-    const variableName =
-      state.currentDataset?.rendering?.variable || state.variable || "";
-    if (!isPrecipVariable(variableName)) return 1e-12;
-
-    const timeCount = Number(state.currentDataset?.timeMetadata?.count || 0);
-    const frequencyHints = [
-      state.currentDataset?.rendering?.frequencyLabel,
-      state.currentDataset?.name,
-      state.currentDataset?.urlPath,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return ANNUAL_FREQUENCY_HINT_RE.test(frequencyHints) || timeCount === 1
-      ? 200
-      : 1;
-  }
-
   function updateMap() {
-    if (!state.currentDataset || !state.selectedLayer) return;
-    if (wmsLayer) map.removeLayer(wmsLayer);
-    let time = getSelectedTime();
-    if (typeof time === "string" && time.includes(","))
-      time = time.split(",")[0].trim();
-    const opacity = parseInt(opacitySlider.value, 10) / 100;
-    const styleBase = styleSelect?.value || "default-scalar";
-    const palette = paletteSelect.value;
-    const supportsPalette = styleSupportsPalette(styleBase);
-    const styleName = supportsPalette ? `${styleBase}/${palette}` : styleBase;
-    const manualMin = scaleMin?.value ? parseFloat(scaleMin.value) : null;
-    const manualMax = scaleMax?.value ? parseFloat(scaleMax.value) : null;
-    const metadataRange = state.metadataRange || {};
-    const min = manualMin != null ? manualMin : metadataRange.min ?? null;
-    const max = manualMax != null ? manualMax : metadataRange.max ?? null;
-    if (
-      Number.isFinite(min) &&
-      Number.isFinite(max) &&
-      Number(min) >= Number(max)
-    ) {
-      setStatus("Min value must be less than max value.", true);
-      return;
-    }
-    const hasExplicitRange = Number.isFinite(min) && Number.isFinite(max);
-    const shouldLogScale = Boolean(
-      state.currentDataset?.rendering?.logScale && hasExplicitRange,
-    );
-    const bands = normalizeColorBandCount(numColors?.value);
-    if (numColors) numColors.value = String(bands);
-    const requestCrs = pickRequestCrsForLayer(state.selectedLayer, currentCrs);
-    const params = {
-      LAYERS: state.selectedLayer.name,
-      STYLES: styleName,
-      FORMAT: "image/png",
-      TRANSPARENT: true,
-      VERSION: WMS_VERSION,
-      CRS: requestCrs,
+    if (!state.currentDataset || !state.selectedLayer) return false;
+    const rendering = state.currentDataset.rendering || {};
+    const user = {
+      min: scaleMin.value === "" ? null : Number(scaleMin.value),
+      max: scaleMax.value === "" ? null : Number(scaleMax.value),
+      scaleType: scaleType.value,
+      palette: paletteSelect.value,
+      numColorBands: normalizeColorBandCount(numColors.value),
+      style: styleSelect.value,
+      opacity: parseInt(opacitySlider.value, 10) / 100,
     };
-    if (time !== "—" && state.times.length > 1) params.TIME = time;
-    if (supportsPalette) {
-      params.PALETTE = palette;
-      params.NUMCOLORBANDS = bands;
-      const safeMin =
-        shouldLogScale && min != null ? Math.max(min, getLogScaleMinFloor()) : min;
-      if (safeMin != null && max != null)
-        params.COLORSCALERANGE = `${safeMin},${max}`;
-      if (shouldLogScale) params.LOGSCALE = "true";
-      params.BELOWMINCOLOR = "transparent";
-      params.ABOVEMAXCOLOR = "0x202020";
+    const config = getEffectiveRendering({ ...state.metadataRange, ...rendering }, user);
+    const error = validateRendering(config);
+    if (error) {
+      setStatus(error, true);
+      return false;
     }
+    if (wmsLayer) map.removeLayer(wmsLayer);
+    numColors.value = String(config.numColorBands);
+    let selectedTime = getSelectedTime();
+    if (typeof selectedTime === "string" && selectedTime.includes(","))
+      selectedTime = selectedTime.split(",")[0].trim();
+    const supportsPalette = styleSupportsPalette(config.style);
+    config.style = supportsPalette ? `${config.style}/${config.palette}` : config.style;
+    const requestCrs = pickRequestCrsForLayer(state.selectedLayer, currentCrs);
+    const requests = buildWmsRequestParams(
+      config, supportsPalette, state.selectedLayer.name, requestCrs,
+    );
+    const params = requests.map;
+    if (selectedTime !== "—" && state.times.length > 1) params.TIME = selectedTime;
     wmsLayer = new olRef.layer.Tile({
-      opacity,
+      opacity: config.opacity,
       source: new olRef.source.TileWMS({
-        url: state.currentDataset.wmsBase,
-        params,
-        projection: requestCrs,
-        hidpi: false,
-        wrapX: false,
+        url: state.currentDataset.wmsBase, params, projection: requestCrs,
+        hidpi: false, wrapX: false,
       }),
     });
     map.addLayer(wmsLayer);
@@ -564,20 +566,12 @@ export function createMapController({
         const tile = evt?.tile?.getImage?.();
         console.error("WMS tile load error:", tile?.src || "");
       } catch {
-        /* best-effort. img.src logging should never block error handling */
+        /* best-effort */
       }
       setStatus("WMS tile load error", true);
     });
-    const legendMinValue =
-      shouldLogScale && min != null ? Math.max(min, getLogScaleMinFloor()) : min;
-    updateLegend(
-      styleName,
-      palette,
-      legendMinValue,
-      max,
-      bands,
-      supportsPalette,
-    );
+    updateLegend(config, requests.legend);
+    return true;
   }
 
   function setLayerOpacity(opacityPercent) {

@@ -1,5 +1,9 @@
 export const KNOWN_PORTALS = [
-  // { id: 'gridded_daily', title: 'Daily Gridded Meteorological Datasets', mount: 'gridded_daily', defaultCrs: 'EPSG:4326' },
+  {
+    id: "gridded_daily",
+    mount: "gridded_daily",
+    defaultCrs: "EPSG:4326",
+  },
   {
     id: "prism",
     mount: "prism",
@@ -226,6 +230,7 @@ export function readViewerUrlState(href = window.location.href) {
         .toUpperCase() || null,
     palette: String(params.get("palette") || "").trim() || null,
     style: String(params.get("style") || "").trim() || null,
+    scaleType: ["linear", "log"].includes(params.get("scaleType")) ? params.get("scaleType") : null,
     min: finiteUrlNumber(params.get("min")),
     max: finiteUrlNumber(params.get("max")),
     colors: colors === null ? null : Math.round(colors),
@@ -262,8 +267,11 @@ export function buildViewerUrl(
   setString("crs", viewerState?.crs);
   setString("palette", viewerState?.palette);
   setString("style", viewerState?.style);
-  const min = compactUrlNumber(viewerState?.min);
-  const max = compactUrlNumber(viewerState?.max);
+  setString("scaleType", viewerState?.scaleType);
+  const minValue = finiteUrlNumber(viewerState?.min);
+  const maxValue = finiteUrlNumber(viewerState?.max);
+  const min = minValue === null ? null : String(minValue);
+  const max = maxValue === null ? null : String(maxValue);
   const colors = compactUrlNumber(viewerState?.colors, 0);
   const opacity = compactUrlNumber(viewerState?.opacity, 0);
   if (min !== null) url.searchParams.set("min", min);

@@ -1,4 +1,5 @@
 import { buildPortalUrl } from './core/config.js';
+import { logMinForScaleSwitch } from './map/controller.js';
 import { createMetadataDialogController } from './metadata.js';
 import {
   timeModeBtns,
@@ -17,6 +18,8 @@ import {
   opacitySlider,
   applyScaleBtn,
   styleSelect,
+  scaleType,
+  scaleMin,
   paletteSelect,
   portalSelect,
   metadataBtn,
@@ -265,6 +268,15 @@ export function wireEvents({
   });
   opacitySlider.addEventListener('input', () => {
     setLayerOpacity(opacitySlider.value);
+    viewerStateChanged();
+  });
+
+  scaleType.addEventListener('change', () => {
+    if (scaleType.value === 'log') {
+      const nextMin = logMinForScaleSwitch(scaleMin.value, state.currentDataset?.rendering);
+      if (nextMin !== null) scaleMin.value = String(nextMin);
+    }
+    updateMap();
     viewerStateChanged();
   });
 

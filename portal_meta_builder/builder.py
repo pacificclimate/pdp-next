@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Set, Tuple
 
 from .io_utils import file_fingerprint, load_json, utc_now_iso
 from .metadata import derive_common_fields, read_netcdf_metadata
-from .minmax import select_minmax_record
+from .minmax import rendering_defaults, select_minmax_record
 from .portals import build_menu_tree, derive_menu_fields, get_portal_config
 
 
@@ -94,9 +94,9 @@ def build_portal_payload(
         if needs_refresh:
             metadata = read_netcdf_metadata(src)
             entry = build_entry(portal_id, src, fingerprint, metadata)
-            lookup = select_minmax_record(minmax_lookup, source_key, src.name, portal_id)
-            if lookup:
-                entry["rendering"] = lookup
+            minmax_record = select_minmax_record(minmax_lookup, source_key, src.name, portal_id)
+            if minmax_record:
+                entry["rendering"] = rendering_defaults(minmax_record, portal_id, entry["metadata"], src.name)
             entries[source_key] = entry
             updated += 1
         else:
@@ -114,11 +114,15 @@ def build_portal_payload(
                     entries[source_key] = entry
                     updated += 1
 
-            lookup = select_minmax_record(minmax_lookup, source_key, src.name, portal_id)
+            minmax_record = select_minmax_record(minmax_lookup, source_key, src.name, portal_id)
+            rendering = (
+                rendering_defaults(minmax_record, portal_id, entry.get("metadata", {}), src.name)
+                if minmax_record else None
+            )
             existing_render = entry.get("rendering") if isinstance(entry.get("rendering"), dict) else None
-            if lookup:
-                if existing_render != lookup:
-                    entry["rendering"] = lookup
+            if rendering:
+                if existing_render != rendering:
+                    entry["rendering"] = rendering
                     entry["updatedAt"] = utc_now_iso()
                     entries[source_key] = entry
                     updated += 1
