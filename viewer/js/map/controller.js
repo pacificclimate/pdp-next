@@ -1,7 +1,7 @@
 import { cellValueRequest } from './cell-value.js';
 import { installPointerCoordinates } from './coordinates.js';
 import { reprojectSubsetFeatures } from '../subsetting/bbox.js';
-import { WMS_VERSION, paletteLabel } from "../core/config.js";
+import { EEZ_BOUNDARIES_URL, WMS_VERSION, paletteLabel } from "../core/config.js";
 import { formatDisplayUnits } from "../core/units.js";
 
 const PRECIP_VARIABLE_NAMES = new Set([
@@ -183,6 +183,29 @@ export function createMapController({
     source: new olRef.source.OSM(),
     visible: true,
   });
+  const eezFormat = new olRef.format.GeoJSON({ dataProjection: "EPSG:4326" });
+  const eezSource = new olRef.source.Vector({
+    loader: async function () {
+      const response = await fetch(EEZ_BOUNDARIES_URL);
+      if (!response.ok) throw new Error(`EEZ boundary request failed: ${response.status}`);
+      const geojson = await response.json();
+      delete geojson.crs;
+      this.addFeatures(
+        eezFormat.readFeatures(geojson, { featureProjection: currentCrs }),
+      );
+    },
+  });
+  const eezLayer = new olRef.layer.Vector({
+    source: eezSource,
+    style: new olRef.style.Style({
+      stroke: new olRef.style.Stroke({
+        color: "rgba(134, 161, 177, 0.4)",
+        width: 2,
+        lineJoin: "round",
+        lineCap: "round",
+      }),
+    }),
+  });
   const DEFAULT_VIEW_CENTER_LONLAT = [-95, 62];
   // Broad North American envelope with room for Canada's offshore EEZ; avoid repeated worlds.
   const NAVIGATION_EXTENT_4326 = [-180, 10, -40, 90];
@@ -197,6 +220,7 @@ export function createMapController({
     return olRef.proj.transformExtent(extent, 'EPSG:4326', crs, 16);
   }
   let currentCrs = String(portal.defaultCrs || "EPSG:3857").toUpperCase();
+  setEezProjectionExtent();
   let mapView = new olRef.View({
     projection: currentCrs,
     extent: navigationExtent(currentCrs),
@@ -210,7 +234,7 @@ export function createMapController({
   });
   const map = new olRef.Map({
     target: "map",
-    layers: [baseLayer],
+    layers: [baseLayer, eezLayer],
     view: mapView,
   });
   let cellValueContext = null;
@@ -256,6 +280,12 @@ export function createMapController({
     return validExtent(geographicExtent) ? geographicExtent : null;
   }
 
+  function reprojectEezFeatures(previousCrs, nextCrs) {
+    eezSource.getFeatures().forEach((feature) => {
+      feature.getGeometry()?.transform(previousCrs, nextCrs);
+    });
+  }
+
   function setMapProjection(nextCrs) {
     const code = String(nextCrs || "")
       .trim()
@@ -273,7 +303,9 @@ export function createMapController({
       previousResolution,
     );
     reprojectSubsetFeatures(olRef, subsetDrawSource, previousCrs, code);
+    reprojectEezFeatures(previousCrs, code);
     currentCrs = code;
+    setEezProjectionExtent();
     const nextCenter = projectedView?.center || olRef.proj.transform(
       DEFAULT_VIEW_CENTER_LONLAT,
       "EPSG:4326",
@@ -600,6 +632,10 @@ export function createMapController({
   function setLayerOpacity(opacityPercent) {
     if (!wmsLayer) return;
     wmsLayer.setOpacity(parseInt(opacityPercent, 10) / 100);
+  }
+
+  function setEezProjectionExtent() {
+    eezLayer.setExtent(olRef.proj.get(currentCrs)?.getExtent());
   }
 
   function fitMapToBbox4326(bbox) {
