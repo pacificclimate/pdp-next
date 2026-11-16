@@ -181,7 +181,6 @@ const {
   updateSubsetTimeInputsEnabled,
   selectTimeFromDateInput,
   toggleTimeCalendar,
-  closeTimeCalendars,
   toggleSubsetTimeCalendar,
   applySubsetTimeCalendarSelection,
   validateSubsetTimeRange,

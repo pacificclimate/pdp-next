@@ -18,6 +18,7 @@ export default [
         URLSearchParams: 'readonly',
         DOMParser: 'readonly',
         HTMLDialogElement: 'readonly',
+        Option: 'readonly',
         Event: 'readonly',
         alert: 'readonly',
         setTimeout: 'readonly',
