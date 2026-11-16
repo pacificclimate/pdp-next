@@ -1,3 +1,5 @@
+import { cellValueRequest } from './cell-value.js';
+import { installPointerCoordinates } from './coordinates.js';
 import { WMS_VERSION, paletteLabel } from "../core/config.js";
 import { formatDisplayUnits } from "../core/units.js";
 
@@ -195,6 +197,16 @@ export function createMapController({
     target: "map",
     layers: [baseLayer],
     view: mapView,
+  });
+  let cellValueContext = null;
+  const pointerReadout = installPointerCoordinates(map, ui.pointerCoordinates, () => currentCrs, {
+    getCellValueRequest(coordinate) {
+      if (!cellValueContext || cellValueContext.dataset !== state.currentDataset
+        || cellValueContext.layer !== state.selectedLayer
+        || cellValueContext.time !== normalizedSelectedTime()) return null;
+      return cellValueRequest(wmsLayer.getSource(), coordinate, map.getView(),
+        cellValueContext.label, cellValueContext.units);
+    },
   });
   const subsetDrawSource = new olRef.source.Vector();
   const subsetDrawLayer = new olRef.layer.Vector({
@@ -519,6 +531,11 @@ export function createMapController({
     return PRECIP_VARIABLE_NAMES.has(value);
   }
 
+  function normalizedSelectedTime() {
+    const selectedTime = getSelectedTime();
+    return typeof selectedTime === 'string' ? selectedTime.split(',')[0].trim() : selectedTime;
+  }
+
   function updateMap() {
     if (!state.currentDataset || !state.selectedLayer) return false;
     const rendering = state.currentDataset.rendering || {};
@@ -539,9 +556,7 @@ export function createMapController({
     }
     if (wmsLayer) map.removeLayer(wmsLayer);
     numColors.value = String(config.numColorBands);
-    let selectedTime = getSelectedTime();
-    if (typeof selectedTime === "string" && selectedTime.includes(","))
-      selectedTime = selectedTime.split(",")[0].trim();
+    const selectedTime = normalizedSelectedTime();
     const supportsPalette = styleSupportsPalette(config.style);
     config.style = supportsPalette ? `${config.style}/${config.palette}` : config.style;
     const requestCrs = pickRequestCrsForLayer(state.selectedLayer, currentCrs);
@@ -558,6 +573,13 @@ export function createMapController({
       }),
     });
     map.addLayer(wmsLayer);
+    const variable = String(state.variable || state.selectedLayer.name);
+    cellValueContext = {
+      dataset: state.currentDataset, layer: state.selectedLayer, time: selectedTime,
+      label: variable.charAt(0).toUpperCase() + variable.slice(1),
+      units: state.layerDetails?.units || state.currentDataset?.metadata?.primary?.units || '',
+    };
+    pointerReadout.refresh();
     setStatus("Loading map image…");
     const src = wmsLayer.getSource();
     src.on("tileloadend", () => setStatus("Ready"));
