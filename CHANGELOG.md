@@ -4,6 +4,68 @@ All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-11-16
+
+### Added
+
+- CF calendar-aware temporal selection and subsetting, including support for
+  360-day, no-leap, all-leap, Gregorian, proleptic Gregorian, Julian, and TAI
+  calendars (#31)
+- Canadian Exclusive Economic Zone (EEZ) boundaries on the map, with
+  reprojection when switching the map CRS (#30)
+- Centralized, steward-editable display-label configuration for portals,
+  datasets, menu headings, and variables, with documentation and label-key
+  inspection tooling (#33)
+- Dataset metadata summary modal with Markdown, JSON, and NcML downloads (#38)
+- Editable date fields and calendar pickers for daily, monthly, and seasonal
+  datasets, synchronized with the time slider (#49)
+- Linear and logarithmic map rendering controls, dataset-specific rendering
+  defaults, and URL persistence of scale settings (#50)
+- Gridded daily datasets portal (#50)
+- Map pointer coordinates in the active coordinate reference system (CRS)
+  and raster cell value readout (#51)
+- Interactive spatial selection editing, including editable bounding box and
+  point coordinates in a selectable CRS, bounding box resizing and movement,
+  point dragging, and optional labels in the map CRS (#52)
+- URL persistence and sharing of spatial selections, including selection
+  type, CRS, and stored coordinates (#52)
+- GitHub Actions CI for JavaScript and Python tests and production builds (#31)
+
+### Changed
+
+- Lazy-loaded the subsetting controller to reduce the initial viewer
+  bundle size (#35)
+- Replaced browser alerts with inline status-panel feedback, removed the
+  native confirmation fallback, and added a cancel option to the large
+  time-selection dialog before request submission (#39)
+- Time slider, WMS time requests, and NetCDF subsetting now use a common
+  CF-aware time-coordinate conversion and indexing implementation (#31)
+- Time-coordinate discovery now uses CF reference-time units rather than
+  requiring a variable named `time` (#47)
+- Map and legend rendering now use consistent WMS parameters and
+  numeric precision (#50)
+- Spatial selection coordinates use five decimal places for longitude and
+  latitude and whole metres for projected coordinates, with a read-only
+  EPSG:4326 summary matching the submitted bounds (#52)
+- Map navigation is constrained to a broad North American extent covering
+  Canada and its EEZ (#52)
+- Map background outside rendered coverage now matches the ocean colour (#30)
+
+### Fixed
+
+- Temporal date-range validation and indexing for datasets using
+  non-Gregorian calendars and sub-day time coordinates (#31)
+- OPeNDAP coordinate parsing dropping the first time coordinate (#31)
+- Viewport position and ground resolution when switching map projections,
+  and viewport extent restoration from shared URLs (#40)
+- Temporal selection and subsetting for datasets with descending time
+  coordinates, preserving source ordering while displaying dates
+  chronologically (#48)
+- Spatial selection geometry and coordinate preservation when switching
+  map projections (#52)
+- Out-of-range spatial coordinate edits and coordinate drift when repeatedly
+  applying an unchanged selection (#52)
+
 ## [1.1.2] - 2026-10-27
 
 ### Security
