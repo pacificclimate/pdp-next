@@ -51,6 +51,7 @@ import {
   subsetTimeModeInputs,
   subsetTimeStart,
   subsetTimeEnd,
+  subsetDownloadOrderNotice,
   subsetSpatialMode,
   setStatus,
   startStatusSpinner,
@@ -315,6 +316,7 @@ const datasetController = createDatasetController({
     subsetTimeStart,
     subsetTimeEnd,
     timeSlider,
+    subsetDownloadOrderNotice,
   },
   status: {
     setStatus,

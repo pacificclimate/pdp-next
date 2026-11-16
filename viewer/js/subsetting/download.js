@@ -7,6 +7,21 @@ import {
   parseCfUnits
 } from '../time/cftime.js';
 
+export function buildNcpartitionerTargets({
+  variable, timeCoordinateName, hasTimeCoordinate, timeStart, timeEnd,
+  latStart, latEnd, lonStart, lonEnd
+}) {
+  const variableTarget = hasTimeCoordinate
+    ? `${variable}[${timeStart}:${timeEnd}][${latStart}:${latEnd}][${lonStart}:${lonEnd}]`
+    : `${variable}[${latStart}:${latEnd}][${lonStart}:${lonEnd}]`;
+  return [
+    ...(hasTimeCoordinate ? [`${timeCoordinateName}[${timeStart}:${timeEnd}]`] : []),
+    `lat[${latStart}:${latEnd}]`,
+    `lon[${lonStart}:${lonEnd}]`,
+    variableTarget
+  ].join(',');
+}
+
 export function createSubsetDownloadController({
   state,
   portal,
@@ -620,15 +635,10 @@ export function createSubsetDownloadController({
 
       const hasTimeCoordinate = Boolean(timeMetadata.name || timeMetadata.units || actualTimeCount);
       const timeCoordinateName = String(timeMetadata.name || (hasTimeCoordinate ? 'time' : ''));
-      const variableTarget = hasTimeCoordinate
-        ? `${state.variable}[${timeStart}:${timeEnd}][${latStart}:${latEnd}][${lonStart}:${lonEnd}]`
-        : `${state.variable}[${latStart}:${latEnd}][${lonStart}:${lonEnd}]`;
-      const targets = [
-        ...(hasTimeCoordinate ? [`${timeCoordinateName}[${timeStart}:${timeEnd}]`] : []),
-        `lat[${latStart}:${latEnd}]`,
-        `lon[${lonStart}:${lonEnd}]`,
-        variableTarget
-      ].join(',');
+      const targets = buildNcpartitionerTargets({
+        variable: state.variable, timeCoordinateName, hasTimeCoordinate,
+        timeStart, timeEnd, latStart, latEnd, lonStart, lonEnd,
+      });
 
       const tPartitionStart = performance.now();
       const { job, statusUrl } = await submitNcpartitionerJob(targets, fetchController.signal);

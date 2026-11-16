@@ -7,6 +7,7 @@ const dataset = {
   name: 'tas_daily.nc',
   selectionLabel: 'Historical › Daily',
   urlPath: 'data/example/tas_daily.nc',
+  timeCoordinateOrder: 'descending',
   metadata: {
     primary: {
       name: 'tas',
@@ -38,6 +39,10 @@ test('formats selected dataset metadata as a readable Markdown summary', () => {
   assert.match(summary, /## Time coverage/);
   assert.match(summary, /- \*\*Time steps:\*\* 55152/);
   assert.match(summary, /## Global attributes/);
+  assert.match(summary, /## Time ordering/);
+  assert.match(summary, /- \*\*Source time coordinate order:\*\* descending/);
+  assert.match(summary, /- \*\*Viewer display order:\*\* chronological/);
+  assert.match(summary, /- \*\*Download order:\*\* descending/);
   assert.match(summary, /- \*\*Conventions:\*\* CF-1\.8/);
   assert.doesNotMatch(summary, /Created on an internal system/);
 });
