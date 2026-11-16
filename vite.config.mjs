@@ -80,5 +80,8 @@ export default defineConfig(({ mode }) => {
       outDir: '../dist',
       emptyOutDir: true,
     },
+    test: {
+      include: ['../test/**/*.test.mjs'],
+    },
   };
 });

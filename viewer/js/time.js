@@ -4,18 +4,10 @@ import { createTimeUiController } from './time/ui.js';
 
 export function createTimeController({
   state,
-  ui,
-  services,
-  config
+  ui
 }) {
-  const parseHelpers = createTimeParseHelpers({
-    state,
-    TIME_EXPAND_LIMIT: config.TIME_EXPAND_LIMIT
-  });
-  const metadataController = createTimeMetadataController({
-    fetchText: services.fetchText,
-    parseHelpers
-  });
+  const parseHelpers = createTimeParseHelpers();
+  const metadataController = createTimeMetadataController();
   const uiController = createTimeUiController({
     state,
     ...ui,
@@ -24,8 +16,6 @@ export function createTimeController({
 
   return {
     parseWmsCapabilities: metadataController.parseWmsCapabilities,
-    deriveTimesFromLayerDetails: metadataController.deriveTimesFromLayerDetails,
-    fetchLayerTimesteps: metadataController.fetchLayerTimesteps,
     getSubsetTimeMode: uiController.getSubsetTimeMode,
     normalizeSubsetTimeSelection: uiController.normalizeSubsetTimeSelection,
     syncSubsetTimeRangeVisibility: uiController.syncSubsetTimeRangeVisibility,
@@ -34,7 +24,6 @@ export function createTimeController({
     getSelectedTimeLabel: uiController.getSelectedTimeLabel,
     updateTimeUI: uiController.updateTimeUI,
     toDateInputValue: parseHelpers.toDateInputValue,
-    parseSubsetDateValue: parseHelpers.parseSubsetDateValue,
     updateSubsetTimeInputsEnabled: uiController.updateSubsetTimeInputsEnabled,
     hasMultipleTimes: uiController.hasMultipleTimes
   };

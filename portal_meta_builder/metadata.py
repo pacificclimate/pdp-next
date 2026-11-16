@@ -241,6 +241,10 @@ def read_netcdf_metadata(path: Path) -> Dict[str, Any]:
             metadata["time"]["count"] = int(len(time_var))
             units = getattr(time_var, "units", None)
             calendar = getattr(time_var, "calendar", "standard")
+            if units:
+                metadata["time"]["units"] = str(units)
+            if calendar:
+                metadata["time"]["calendar"] = str(calendar)
             if units and len(time_var) > 0:
                 try:
                     start = num2date(time_var[0], units=units, calendar=calendar)

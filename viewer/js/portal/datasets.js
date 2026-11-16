@@ -3,6 +3,8 @@ import {
   FALLBACK_PALETTES,
   DEFAULT_CANADA_BBOX_4326,
 } from "../core/config.js";
+import { cfNumberToIso, normalizeCalendar } from "../time/cftime.js";
+import { parseAsciiDimensionValues } from "../subsetting/indexes.js";
 
 export function variableLabelForGroup(varCode, group, defaultLabels = {}) {
   const v = String(varCode || "");
@@ -29,8 +31,6 @@ export function createDatasetController({
   const {
     parseWmsCapabilities,
     fetchLayerDetails,
-    deriveTimesFromLayerDetails,
-    fetchLayerTimesteps,
     updateTimeUI,
     toDateInputValue,
   } = time;
@@ -77,17 +77,6 @@ export function createDatasetController({
 
   function ncpartitionerBase() {
     return "/pdp-next/ncpartitioner/";
-  }
-
-  function normalizePortalTimeValue(value) {
-    const raw = String(value || "").trim();
-    if (!raw) return "";
-    const isoLike = raw.includes("T") ? raw : raw.replace(" ", "T");
-    const withZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(isoLike)
-      ? isoLike
-      : `${isoLike}Z`;
-    const dt = new Date(withZone);
-    return Number.isNaN(dt.getTime()) ? raw : dt.toISOString();
   }
 
   async function resolveLayersFromCapabilities() {
@@ -142,60 +131,38 @@ export function createDatasetController({
     if (end) subsetTimeEnd.value = toDateInputValue(end);
   }
 
-  function initTimesFromLayer(timeMetadata) {
-    const timeStart = state.selectedLayer.time?.start || "";
-    const timeEnd = state.selectedLayer.time?.end || "";
-    subsetTimeStart.value = timeStart ? toDateInputValue(timeStart) : "";
-    subsetTimeEnd.value = timeEnd ? toDateInputValue(timeEnd) : "";
-    state.times = Array.isArray(state.selectedLayer.time?.times)
-      ? state.selectedLayer.time.times
-      : [];
-    if (
-      !state.times.length &&
-      Number(timeMetadata?.count || 0) === 1 &&
-      timeMetadata?.start
-    ) {
-      const singleTime = normalizePortalTimeValue(timeMetadata.start);
-      if (singleTime) {
-        state.times = [singleTime];
-        setSubsetTimeInputs(singleTime, singleTime);
-      }
+  function usesCfTimeAxis(timeMetadata) {
+    const calendar = normalizeCalendar(timeMetadata?.calendar);
+    return Boolean(timeMetadata?.units && calendar);
+  }
+
+  async function replaceTimesWithCfCoordinates(timeMetadata) {
+    if (!timeMetadata?.units) {
+      throw new Error('Dataset metadata is missing CF time units');
     }
+    if (!usesCfTimeAxis(timeMetadata)) {
+      throw new Error(`Unsupported CF calendar: ${timeMetadata?.calendar || '(missing)'}`);
+    }
+    const key = String(state.currentDataset.urlPath || '');
+    let values = state.timeCoordinateCache?.[key];
+    if (!values) {
+      const asciiUrl = `${dodsBaseForUrlPath(state.currentDataset.urlPath)}.ascii?time`;
+      values = parseAsciiDimensionValues(await fetchText(asciiUrl), 'time');
+      if (!values.length) throw new Error('Could not read the source CF time coordinate');
+      state.timeCoordinateCache ||= {};
+      state.timeCoordinateCache[key] = values;
+    }
+    const times = values.map((value) => cfNumberToIso(
+      value,
+      timeMetadata.units,
+      timeMetadata.calendar,
+    ));
+    if (!times.length || times.some((value) => !value)) {
+      throw new Error('Could not convert the source CF time coordinate');
+    }
+    state.times = times;
+    setSubsetTimeInputs(times[0], times[times.length - 1]);
     applyTimesToUI();
-  }
-
-  async function expandTimesFromDetails(details) {
-    if (state.times.length > 1) return;
-    const detailTimes = deriveTimesFromLayerDetails(details);
-    if (detailTimes.times.length > state.times.length) {
-      state.times = detailTimes.times;
-      setSubsetTimeInputs(detailTimes.start, detailTimes.end);
-      applyTimesToUI();
-    }
-  }
-
-  async function expandTimesFromMetadata() {
-    if (state.times.length > 1) return;
-    const metadataTimes = await fetchLayerTimesteps(
-      state.currentDataset.wmsBase,
-      state.selectedLayer.name,
-    );
-    if (metadataTimes.times.length > state.times.length) {
-      state.times = metadataTimes.times;
-      setSubsetTimeInputs(metadataTimes.start, metadataTimes.end);
-      applyTimesToUI();
-    }
-  }
-
-  function overrideSingleTimeFromMetadata(timeMetadata) {
-    if (Number(timeMetadata?.count || 0) !== 1 || !timeMetadata?.start) return;
-    const singleTime = normalizePortalTimeValue(timeMetadata.start);
-    if (!singleTime) return;
-    state.times = [singleTime];
-    subsetTimeStart.value = toDateInputValue(singleTime);
-    subsetTimeEnd.value = toDateInputValue(singleTime);
-    timeSlider.value = "0";
-    updateTimeUI();
   }
 
   function applyPaletteAndScale(details, rendering) {
@@ -255,8 +222,6 @@ export function createDatasetController({
 
       await resolveLayersFromCapabilities();
       syncCrsForLayer({ fitToLayer: isInitialDataset });
-      initTimesFromLayer(timeMetadata);
-
       let details = null;
       try {
         details = await fetchLayerDetails(
@@ -268,9 +233,7 @@ export function createDatasetController({
       }
       state.layerDetails = details;
 
-      await expandTimesFromDetails(details);
-      await expandTimesFromMetadata();
-      overrideSingleTimeFromMetadata(timeMetadata);
+      await replaceTimesWithCfCoordinates(timeMetadata);
 
       applyPaletteAndScale(details, rendering);
       applyInitialViewerState?.();

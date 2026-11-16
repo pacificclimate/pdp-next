@@ -426,7 +426,10 @@ export function createMapController({
       variableIconElement.dataset.kind = icon.kind;
       variableIconElement.innerHTML = icon.svg;
     }
-    timeInfo.textContent = getSelectedTimeLabel();
+    const calendar = state.currentDataset?.timeMetadata?.calendar;
+    timeInfo.textContent = calendar
+      ? `${getSelectedTimeLabel()} (${calendar})`
+      : getSelectedTimeLabel();
   }
 
   function pickBestCrsForLayer(layer) {
