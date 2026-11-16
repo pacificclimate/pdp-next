@@ -44,6 +44,12 @@ def main() -> int:
         action="store_true",
         help="drop stale entries not in current inventory",
     )
+
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="reread every in-inventory NetCDF file, ignoring metadata cache freshness",
+    )
     args = parser.parse_args()
 
     mirror_root = Path(args.mirror_root).resolve()
@@ -71,6 +77,7 @@ def main() -> int:
             minmax_lookup=minmax_lookup,
             minmax_source_name=minmax_path.name,
             prune=args.prune,
+            refresh=args.refresh,
         )
         save_json(out_path, new_payload)
 

@@ -618,11 +618,16 @@ export function createSubsetDownloadController({
         }
       }
 
+      const hasTimeCoordinate = Boolean(timeMetadata.name || timeMetadata.units || actualTimeCount);
+      const timeCoordinateName = String(timeMetadata.name || (hasTimeCoordinate ? 'time' : ''));
+      const variableTarget = hasTimeCoordinate
+        ? `${state.variable}[${timeStart}:${timeEnd}][${latStart}:${latEnd}][${lonStart}:${lonEnd}]`
+        : `${state.variable}[${latStart}:${latEnd}][${lonStart}:${lonEnd}]`;
       const targets = [
-        `time[${timeStart}:${timeEnd}]`,
+        ...(hasTimeCoordinate ? [`${timeCoordinateName}[${timeStart}:${timeEnd}]`] : []),
         `lat[${latStart}:${latEnd}]`,
         `lon[${lonStart}:${lonEnd}]`,
-        `${state.variable}[${timeStart}:${timeEnd}][${latStart}:${latEnd}][${lonStart}:${lonEnd}]`
+        variableTarget
       ].join(',');
 
       const tPartitionStart = performance.now();

@@ -77,6 +77,8 @@ export function createSubsetIndexController({
     const key = String(urlPath || '');
     if (state.ncpIndexCache[key]) return state.ncpIndexCache[key];
     const metadataTimeCount = Number(state.currentDataset?.timeMetadata?.count || state.times?.length || 0);
+    const hasTimeCoordinate = Boolean(state.currentDataset?.timeMetadata?.name || metadataTimeCount);
+    const timeCoordinateName = String(state.currentDataset?.timeMetadata?.name || (hasTimeCoordinate ? 'time' : ''));
     const cachedTime = state.timeCoordinateCache?.[key];
     const [lat, lon, time] = await Promise.all([
       fetchOpendapDimensionValues(urlPath, 'lat'),
@@ -85,7 +87,9 @@ export function createSubsetIndexController({
       // scalar coordinate from OpenDAP; ncpartitioner needs index 0.
       cachedTime || (metadataTimeCount === 1
         ? Promise.resolve([0])
-        : fetchOpendapDimensionValues(urlPath, 'time'))
+        : metadataTimeCount > 1
+          ? fetchOpendapDimensionValues(urlPath, timeCoordinateName)
+          : Promise.resolve([]))
     ]);
     const indexInfo = { lat, lon, time, timeCount: time.length };
     state.ncpIndexCache[key] = indexInfo;

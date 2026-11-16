@@ -54,6 +54,7 @@ def build_portal_payload(
     minmax_lookup: Dict[str, List[Dict[str, Any]]],
     minmax_source_name: str,
     prune: bool = False,
+    refresh: bool = False,
 ) -> Tuple[Dict[str, Any], Dict[str, int], int]:
     files = files_from_mirror_root(mirror_root, portal_id)
     payload = load_json(out_path)
@@ -75,11 +76,15 @@ def build_portal_payload(
         fingerprint = file_fingerprint(src)
         cached_time = existing.get("metadata", {}).get("time", {}) if isinstance(existing.get("metadata"), dict) else {}
         missing_time_coordinate_metadata = (
-            bool(cached_time.get("count"))
-            and (not cached_time.get("units") or not cached_time.get("calendar"))
+            bool(cached_time)
+            and (
+                not cached_time.get("name")
+                or (bool(cached_time.get("count")) and (not cached_time.get("units") or not cached_time.get("calendar")))
+            )
         )
         needs_refresh = (
-            not existing
+            refresh
+            or not existing
             or existing.get("fingerprint") != fingerprint
             or not isinstance(existing.get("metadata"), dict)
             or not isinstance(existing.get("menuFields"), dict)
