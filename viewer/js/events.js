@@ -329,6 +329,7 @@ export function wireEvents({
     const mode = (subsetSpatialMode.value || 'viewport').toLowerCase();
     state.subset.spatialMode = mode;
     setSubsetDrawMode(mode);
+    viewerStateChanged();
   });
 
   subsetClearDraw.addEventListener('click', () => {

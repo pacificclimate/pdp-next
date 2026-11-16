@@ -1,4 +1,12 @@
 import Map from 'ol/Map.js';
+import Feature from 'ol/Feature.js';
+import Overlay from 'ol/Overlay.js';
+import Pointer from 'ol/interaction/Pointer.js';
+import Point from 'ol/geom/Point.js';
+import Style from 'ol/style/Style.js';
+import Circle from 'ol/style/Circle.js';
+import Fill from 'ol/style/Fill.js';
+import Stroke from 'ol/style/Stroke.js';
 import View from 'ol/View.js';
 import Draw, { createBox } from 'ol/interaction/Draw.js';
 import TileLayer from 'ol/layer/Tile.js';
@@ -23,9 +31,12 @@ import Polygon from 'ol/geom/Polygon.js';
 // while sourcing it from Vite-bundled ES modules.
 export const ol = {
   Map,
+  Feature,
+  Overlay,
+  style: { Style, Circle, Fill, Stroke },
   View,
-  geom: { Polygon },
-  interaction: { Draw: Object.assign(Draw, { createBox }) },
+  geom: { Polygon, Point },
+  interaction: { Pointer, Draw: Object.assign(Draw, { createBox }) },
   layer: { Tile: TileLayer, Vector: VectorLayer },
   proj: {
     Projection,

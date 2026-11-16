@@ -218,6 +218,29 @@
                 <option value="draw_point">Point</option>
               </select>
             </div>
+            <div id="bboxEditor" hidden>
+              <div class="color-row">
+                <label for="bboxEditCrs">Edit coordinates</label>
+                <select id="bboxEditCrs" class="format-select">
+                  <option value="EPSG:4326">EPSG:4326 (Lon/Lat)</option>
+                  <option value="EPSG:3857">EPSG:3857 (metres)</option>
+                  <option value="EPSG:3005">EPSG:3005 (metres)</option>
+                  <option value="EPSG:3978">EPSG:3978 (metres)</option>
+                  <option value="CRS:84">CRS:84 (Lon/Lat)</option>
+                </select>
+              </div>
+              <div class="bbox-fields">
+                <label><span id="bboxMinXLabel">Min X</span> <input id="bboxMinX" type="text" inputmode="decimal" aria-describedby="bboxError" /></label>
+                <label><span id="bboxMinYLabel">Min Y</span> <input id="bboxMinY" type="text" inputmode="decimal" aria-describedby="bboxError" /></label>
+                <label id="bboxMaxXField"><span id="bboxMaxXLabel">Max X</span> <input id="bboxMaxX" type="text" inputmode="decimal" aria-describedby="bboxError" /></label>
+                <label id="bboxMaxYField"><span id="bboxMaxYLabel">Max Y</span> <input id="bboxMaxY" type="text" inputmode="decimal" aria-describedby="bboxError" /></label>
+              </div>
+              <p id="bboxError" class="bbox-error" role="status"></p>
+              <button id="bboxApply" class="btn btn-secondary" type="button">Apply</button>
+              <p class="bbox-crs">Selection coordinates: <span id="bboxCrs">EPSG:4326</span><br /><span id="bboxSummary"></span></p>
+              <label class="choice-option"><input id="bboxShowCoordinates" type="checkbox" /> <span id="bboxShowLabel">Show bbox coordinates</span></label>
+              <p id="bboxHint" class="bbox-crs">Drag a corner to resize; drag inside to move.</p>
+            </div>
             <button class="btn btn-secondary" id="subsetClearDraw" type="button">Clear drawing</button>
 
             <p id="subsetDownloadOrderNotice" class="subset-download-order-notice" role="note" hidden>

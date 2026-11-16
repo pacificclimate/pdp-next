@@ -1,3 +1,4 @@
+import { readSelectionParams, writeSelectionParams } from '../subsetting/selection.js';
 export const KNOWN_PORTALS = [
   {
     id: "gridded_daily",
@@ -221,6 +222,7 @@ export function readViewerUrlState(href = window.location.href) {
   const opacity = finiteUrlNumber(params.get("opacity"));
 
   return {
+    selection: readSelectionParams(params),
     dataset: String(params.get("dataset") || "").trim() || null,
     variable: String(params.get("variable") || "").trim() || null,
     view,
@@ -279,6 +281,7 @@ export function buildViewerUrl(
   if (colors !== null) url.searchParams.set("colors", colors);
   if (opacity !== null) url.searchParams.set("opacity", opacity);
   setString("time", viewerState?.time);
+  writeSelectionParams(url.searchParams, viewerState?.selection);
   return url.toString();
 }
 
